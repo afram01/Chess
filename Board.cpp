@@ -249,3 +249,275 @@ std::unique_ptr<Piece> Board::removePieceAt(Position pos) {
     
     return std::move(grid[pos.row][pos.col]);
 }
+
+
+
+
+void Board::movePiece(const Move& move) {
+    if (!move.from.isValid() || !move.to.isValid()) return;
+    
+    Piece* piece = getPieceAt(move.from);
+    if (!piece) return;
+    
+    Piece* captured = getPieceAt(move.to);
+    if (captured) {
+        lastCapturedPiece = removePieceAt(move.to);
+        lastCapturedPosition = move.to;
+        
+        if (captured->getType() == PieceType::QUEEN || 
+            captured->getType() == PieceType::ARMORED_QUEEN) {
+            enableQueenDoubleMove(piece->getColor());
+        }
+    }
+    
+    auto movingPiece = removePieceAt(move.from);
+    movingPiece->setPosition(move.to);
+    movingPiece->setHasMoved(true);
+    setPieceAt(move.to, std::move(movingPiece));
+    
+    updateCastlingRights(move);
+    
+    updateStationaryCounters(move);
+    
+    movesSinceSeasonChange++;
+    if (movesSinceSeasonChange >= movesPerSeasonChange) {
+        advanceSeasonCycle();
+    }
+    
+    addMoveToHistory(move);
+    
+    checkAndExplodeBombs();
+}
+
+
+
+void Board::updateCastlingRights(const Move& move) {
+    Piece* piece = getPieceAt(move.to);
+    if (!piece) return;
+    
+    if (piece->getType() == PieceType::KING) {
+        if (piece->getColor() == Color::WHITE) {
+            whiteKingMoved = true;
+        } else {
+            blackKingMoved = true;
+        }
+    }
+    
+    if (piece->getType() == PieceType::ROOK) {
+        if (piece->getColor() == Color::WHITE) {
+            if (move.from.row == 0 && move.from.col == 0) {
+                whiteQueensideRookMoved = true;
+            } else if (move.from.row == 0 && move.from.col == 7) {
+                whiteKingsideRookMoved = true;
+            }
+        } else {
+            if (move.from.row == 7 && move.from.col == 0) {
+                blackQueensideRookMoved = true;
+            } else if (move.from.row == 7 && move.from.col == 7) {
+                blackKingsideRookMoved = true;
+            }
+        }
+    }
+}
+
+void Board::setCastlingRight(Color color, bool kingside, bool value) {
+    if (color == Color::WHITE) {
+        if (kingside) {
+            whiteKingsideRookMoved = !value;
+        } else {
+            whiteQueensideRookMoved = !value;
+        }
+    } else {
+        if (kingside) {
+            blackKingsideRookMoved = !value;
+        } else {
+            blackQueensideRookMoved = !value;
+        }
+    }
+}
+
+
+
+bool Board::isSquareEmpty(Position pos) const {
+    return getPieceAt(pos) == nullptr;
+}
+
+bool Board::isSquareAttacked(Position pos, Color byColor) const {
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Piece* piece = getPieceAt(r, c);
+            if (piece && piece->getColor() == byColor) {
+                auto moves = piece->getPossibleMoves(*this);
+                for (const auto& move : moves) {
+                    if (move.to == pos) {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool Board::isInCheck(Color color) const {
+    Position kingPos = findKing(color);
+    if (!kingPos.isValid()) return false;
+    
+    Color opponent = (color == Color::WHITE) ? Color::BLACK : Color::WHITE;
+    return isSquareAttacked(kingPos, opponent);
+}
+
+bool Board::isCheckmate(Color color) const {
+    if (!isInCheck(color)) return false;
+    return getAllLegalMoves(color).empty();
+}
+
+bool Board::isStalemate(Color color) const {
+    if (isInCheck(color)) return false;
+    return getAllLegalMoves(color).empty();
+}
+
+Position Board::findKing(Color color) const {
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Piece* piece = getPieceAt(r, c);
+            if (piece && piece->getType() == PieceType::KING && piece->getColor() == color) {
+                return Position(r, c);
+            }
+        }
+    }
+    return Position(-1, -1);
+}
+
+
+
+
+std::vector<Move> Board::getAllLegalMoves(Color color) const {
+    std::vector<Move> legalMoves;
+    
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Piece* piece = getPieceAt(r, c);
+            if (piece && piece->getColor() == color) {
+                auto pieceMoves = getLegalMovesForPiece(Position(r, c));
+                legalMoves.insert(legalMoves.end(), pieceMoves.begin(), pieceMoves.end());
+            }
+        }
+    }
+    
+    return legalMoves;
+}
+
+std::vector<Move> Board::getLegalMovesForPiece(Position pos) const {
+    std::vector<Move> legalMoves;
+    
+    Piece* piece = getPieceAt(pos);
+    if (!piece) return legalMoves;
+    
+    auto possibleMoves = piece->getPossibleMoves(*this);
+    
+    for (const auto& move : possibleMoves) {
+        if (isMoveLegal(move, piece->getColor())) {
+            legalMoves.push_back(move);
+        }
+    }
+    
+    return legalMoves;
+}
+
+bool Board::isMoveLegal(const Move& move, Color color) const {
+    Board tempBoard(*this);
+    
+    Piece* piece = tempBoard.getPieceAt(move.from);
+    if (!piece) return false;
+    
+    auto movingPiece = tempBoard.removePieceAt(move.from);
+    movingPiece->setPosition(move.to);
+    tempBoard.setPieceAt(move.to, std::move(movingPiece));
+    
+    if (piece->getType() == PieceType::PAWN && move.to == enPassantSquare && enPassantAvailable) {
+        int captureRow = (color == Color::WHITE) ? move.to.row - 1 : move.to.row + 1;
+        tempBoard.removePieceAt(Position(captureRow, move.to.col));
+    }
+    
+    return !tempBoard.isInCheck(color);
+}
+
+
+bool Board::canCastleKingside(Color color) const {
+    int row = (color == Color::WHITE) ? 0 : 7;
+    
+    if (color == Color::WHITE) {
+        if (whiteKingMoved || whiteKingsideRookMoved) return false;
+    } else {
+        if (blackKingMoved || blackKingsideRookMoved) return false;
+    }
+    
+    Piece* king = getPieceAt(row, 4);
+    Piece* rook = getPieceAt(row, 7);
+    
+    if (!king || king->getType() != PieceType::KING) return false;
+    if (!rook || rook->getType() != PieceType::ROOK) return false;
+    
+    if (!isSquareEmpty(Position(row, 5)) || !isSquareEmpty(Position(row, 6))) return false;
+    
+    if (isInCheck(color)) return false;
+    
+    Color opponent = (color == Color::WHITE) ? Color::BLACK : Color::WHITE;
+    if (isSquareAttacked(Position(row, 5), opponent)) return false;
+    if (isSquareAttacked(Position(row, 6), opponent)) return false;
+    
+    return true;
+}
+
+bool Board::canCastleQueenside(Color color) const {
+    int row = (color == Color::WHITE) ? 0 : 7;
+    
+    if (color == Color::WHITE) {
+        if (whiteKingMoved || whiteQueensideRookMoved) return false;
+    } else {
+        if (blackKingMoved || blackQueensideRookMoved) return false;
+    }
+    
+    Piece* king = getPieceAt(row, 4);
+    Piece* rook = getPieceAt(row, 0);
+    
+    if (!king || king->getType() != PieceType::KING) return false;
+    if (!rook || rook->getType() != PieceType::ROOK) return false;
+    
+    if (!isSquareEmpty(Position(row, 1)) || !isSquareEmpty(Position(row, 2)) || 
+        !isSquareEmpty(Position(row, 3))) return false;
+    
+    if (isInCheck(color)) return false;
+    
+    Color opponent = (color == Color::WHITE) ? Color::BLACK : Color::WHITE;
+    if (isSquareAttacked(Position(row, 2), opponent)) return false;
+    if (isSquareAttacked(Position(row, 3), opponent)) return false;
+    
+    return true;
+}
+
+void Board::performCastling(const Move& move) {
+    int row = move.from.row;
+    
+    auto king = removePieceAt(move.from);
+    king->setPosition(move.to);
+    king->setHasMoved(true);
+    setPieceAt(move.to, std::move(king));
+    
+    if (move.to.col == 6) {
+        auto rook = removePieceAt(Position(row, 7));
+        rook->setPosition(Position(row, 5));
+        rook->setHasMoved(true);
+        setPieceAt(Position(row, 5), std::move(rook));
+    } else {  
+        auto rook = removePieceAt(Position(row, 0));
+        rook->setPosition(Position(row, 3));
+        rook->setHasMoved(true);
+        setPieceAt(Position(row, 3), std::move(rook));
+    }
+    
+    updateCastlingRights(move);
+    
+    addMoveToHistory(move);
+}
