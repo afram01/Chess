@@ -1,7 +1,9 @@
-#ifndef BOARD_H
-#define BOARD_H
+#ifndef BOARD_HPP
+#define BOARD_HPP
 
 #include "Piece.hpp"
+#include "Position.hpp"
+#include <vector>
 
 class Board {
 private:
@@ -14,6 +16,9 @@ public:
                 grid[i][j] = nullptr;
     }
 
+    void setupBoard() {
+    }
+
     Piece* getPieceAt(int x, int y) {
         if (x < 0 || x >= 8 || y < 0 || y >= 8) return nullptr;
         return grid[x][y];
@@ -22,11 +27,13 @@ public:
     bool movePiece(Position from, Position to) {
         Piece* p = getPieceAt(from.x, from.y);
         if (!p) return false;
-        
         grid[to.x][to.y] = p;
         grid[from.x][from.y] = nullptr;
         return true;
     }
+
+    bool isInCheck(Color player) { return false; }
+    bool isCheckmate(Color player) { return false; }
 };
 
 #endif
