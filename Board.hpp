@@ -1,39 +1,53 @@
-#ifndef BOARD_HPP
-#define BOARD_HPP
+#ifndef BOARD_H
+#define BOARD_H
 
-#include "Piece.hpp"
-#include "Position.hpp"
-#include <vector>
+#include "Common.h"
+#include "Piece.h"
+#include <array>
+#include <map>
+
+enum class Season { 
+    NONE,
+    SPRING,  
+    SUMMER, 
+    AUTUMN,  
+    WINTER  
+};
 
 class Board {
 private:
-    Piece* grid[8][8];
+    std::array<std::array<std::unique_ptr<Piece>, 8>, 8> grid;
+    
+    std::vector<Move> moveHistory;
+    
+    Position enPassantSquare;
+    bool enPassantAvailable;
+    
+    std::unique_ptr<Piece> lastCapturedPiece;
+    Position lastCapturedPosition;
+    
+    bool whiteKingMoved;
+    bool blackKingMoved;
+    bool whiteKingsideRookMoved;
+    bool whiteQueensideRookMoved;
+    bool blackKingsideRookMoved;
+    bool blackQueensideRookMoved;
+    
+    std::map<Position, int> pieceStationaryCounter;
+    int bombThreshold; 
+    
+    bool whiteQueenCanDoubleMove;
+    bool blackQueenCanDoubleMove;
+    
+    Season currentSeason;
+    int movesSinceSeasonChange;
+    int movesPerSeasonChange;
+    
+    std::map<Position, int> armoredQueenHits; 
+    
 
-public:
-    Board() {
-        for(int i=0; i<8; i++)
-            for(int j=0; j<8; j++)
-                grid[i][j] = nullptr;
-    }
+    std::map<Position, int> jokerTransformsUsed; 
 
-    void setupBoard() {
-    }
-
-    Piece* getPieceAt(int x, int y) {
-        if (x < 0 || x >= 8 || y < 0 || y >= 8) return nullptr;
-        return grid[x][y];
-    }
-
-    bool movePiece(Position from, Position to) {
-        Piece* p = getPieceAt(from.x, from.y);
-        if (!p) return false;
-        grid[to.x][to.y] = p;
-        grid[from.x][from.y] = nullptr;
-        return true;
-    }
-
-    bool isInCheck(Color player) { return false; }
-    bool isCheckmate(Color player) { return false; }
 };
 
 #endif
