@@ -1,36 +1,56 @@
 #ifndef GAMEENGINE_HPP
 #define GAMEENGINE_HPP
 
+#include "Types.hpp"
 #include "Board.hpp"
-
-struct Move {
-    Position from;
-    Position to;
-};
+#include "GameState.hpp"
+#include "Move.hpp"
+#include <string>
+#include <vector>
 
 class GameEngine {
 private:
-    Board* board;
-    Color currentTurn;
+    Board board;
+    GameState state;
+    std::vector<MoveRecord> moveHistory;
+
+    Position parsePosition(const std::string& input) const;
+    std::string positionToString(Position pos) const;
+    MoveRecord createMoveRecord(const Move& move);
+    
+    int calculateMoveCost(PieceType type) const;
 
 public:
-    GameEngine(Board* b) : board(b), currentTurn(Color::WHITE) {}
+    GameEngine();
 
-    void processMove(Move move) {
-        if (validateMove(move)) {
-            board->movePiece(move.from, move.to);
-            switchPlayerTurn();
-        }
-    }
+    void newGame();
+    void newGame(GameModeType mode);
 
-    void switchPlayerTurn() {
-        currentTurn = (currentTurn == Color::WHITE) ? Color::BLACK : Color::WHITE;
-    }
+    bool processMove(const std::string& input);
+    void switchPlayerTurn();
 
-    bool validateMove(Move move) {
-        Piece* p = board->getPieceAt(move.from.x, move.from.y);
-        return (p != nullptr && p->getColor() == currentTurn);
-    }
+    GameStatus getCurrentState() const;
+    Color getCurrentTurn() const;
+
+    bool isGameOver() const;
+
+    std::vector<Position> getValidMoves(Position pos);
+    std::vector<Move> getAllValidMoves();
+
+    void undoMove();
+
+    void saveGame(const std::string& filename);
+    bool loadGame(const std::string& filename);
+
+    Board* getBoard();
+    GameState* getGameState();
+
+    void displayBoard();
+
+    std::string getTurnInfo() const;
+
+    void initializeGame();
+    void updateGameState();
 };
 
-#endif
+#endif 

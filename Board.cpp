@@ -222,3 +222,30 @@ void Board::clear() {
     currentSeason = Season::NONE;
     movesSinceSeasonChange = 0;
 }
+Piece* Board::getPieceAt(Position pos) const {
+    if (!pos.isValid()) return nullptr;
+    return grid[pos.row][pos.col].get();
+}
+
+Piece* Board::getPieceAt(int row, int col) const {
+    return getPieceAt(Position(row, col));
+}
+
+void Board::setPieceAt(Position pos, std::unique_ptr<Piece> piece) {
+    if (pos.isValid()) {
+        grid[pos.row][pos.col] = std::move(piece);
+        if (grid[pos.row][pos.col]) {
+            grid[pos.row][pos.col]->setPosition(pos);
+        }
+    }
+}
+
+std::unique_ptr<Piece> Board::removePieceAt(Position pos) {
+    if (!pos.isValid()) return nullptr;
+    
+    pieceStationaryCounter.erase(pos);
+    armoredQueenHits.erase(pos);
+    jokerTransformsUsed.erase(pos);
+    
+    return std::move(grid[pos.row][pos.col]);
+}
