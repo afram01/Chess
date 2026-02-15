@@ -2,13 +2,13 @@
 #define TYPES_HPP
 
 #include "Position.hpp"
-#include "Piece.hpp"
+#include "piece.h"
 
 enum Season {
     SPRING,   
-    SUMMER,  
-    AUTUMN, 
-    WINTER  
+    SUMMER,   
+    AUTUMN,   
+    WINTER    
 };
 
 enum GameStatus {
