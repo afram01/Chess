@@ -8,11 +8,13 @@ Board::Board() :
     whiteKingMoved(false), blackKingMoved(false),
     whiteKingsideRookMoved(false), whiteQueensideRookMoved(false),
     blackKingsideRookMoved(false), blackQueensideRookMoved(false),
-    bombThreshold(5),  
+    bombThreshold(5),
     whiteQueenCanDoubleMove(false), blackQueenCanDoubleMove(false),
     currentSeason(Season::NONE),
     movesSinceSeasonChange(0),
-    movesPerSeasonChange(20) 
+    movesPerSeasonChange(20),
+    currentTurnNumber(0),
+    spyRevealThreshold(3)  
 {
     clear();
 }
@@ -33,8 +35,13 @@ Board::Board(const Board& other) :
     currentSeason(other.currentSeason),
     movesSinceSeasonChange(other.movesSinceSeasonChange),
     movesPerSeasonChange(other.movesPerSeasonChange),
-    armoredQueenHits(other.armoredQueenHits),
-    jokerTransformsUsed(other.jokerTransformsUsed)
+    currentTurnNumber(other.currentTurnNumber),
+    lastMoveTurn(other.lastMoveTurn),
+    armoredQueenArmor(other.armoredQueenArmor),
+    jokerTransformsRemaining(other.jokerTransformsRemaining),
+    jokerCurrentMimic(other.jokerCurrentMimic),
+    spyMoveCounter(other.spyMoveCounter),
+    spyRevealThreshold(other.spyRevealThreshold)
 {
     for (int r = 0; r < 8; r++) {
         for (int c = 0; c < 8; c++) {
@@ -84,9 +91,14 @@ Board& Board::operator=(const Board& other) {
         currentSeason = other.currentSeason;
         movesSinceSeasonChange = other.movesSinceSeasonChange;
         movesPerSeasonChange = other.movesPerSeasonChange;
+        currentTurnNumber = other.currentTurnNumber;
+        lastMoveTurn = other.lastMoveTurn;
         
-        armoredQueenHits = other.armoredQueenHits;
-        jokerTransformsUsed = other.jokerTransformsUsed;
+        armoredQueenArmor = other.armoredQueenArmor;
+        jokerTransformsRemaining = other.jokerTransformsRemaining;
+        jokerCurrentMimic = other.jokerCurrentMimic;
+        spyMoveCounter = other.spyMoveCounter;
+        spyRevealThreshold = other.spyRevealThreshold;
         
         if (other.lastCapturedPiece) {
             lastCapturedPiece = other.lastCapturedPiece->clone();
@@ -113,19 +125,22 @@ void Board::initialize() {
     grid[7][0] = std::make_unique<Rook>(Color::BLACK, Position(7, 0));
     grid[7][7] = std::make_unique<Rook>(Color::BLACK, Position(7, 7));
     
+
     grid[0][1] = std::make_unique<Knight>(Color::WHITE, Position(0, 1));
     grid[0][6] = std::make_unique<Knight>(Color::WHITE, Position(0, 6));
     grid[7][1] = std::make_unique<Knight>(Color::BLACK, Position(7, 1));
     grid[7][6] = std::make_unique<Knight>(Color::BLACK, Position(7, 6));
     
+
     grid[0][2] = std::make_unique<Bishop>(Color::WHITE, Position(0, 2));
     grid[0][5] = std::make_unique<Bishop>(Color::WHITE, Position(0, 5));
     grid[7][2] = std::make_unique<Bishop>(Color::BLACK, Position(7, 2));
     grid[7][5] = std::make_unique<Bishop>(Color::BLACK, Position(7, 5));
     
+
     grid[0][3] = std::make_unique<Queen>(Color::WHITE, Position(0, 3));
     grid[7][3] = std::make_unique<Queen>(Color::BLACK, Position(7, 3));
-    
+
     grid[0][4] = std::make_unique<King>(Color::WHITE, Position(0, 4));
     grid[7][4] = std::make_unique<King>(Color::BLACK, Position(7, 4));
     
@@ -140,6 +155,7 @@ void Board::initialize() {
 void Board::initializeWithSpecialPieces() {
     clear();
     
+
     grid[1][0] = std::make_unique<SoldierPlus>(Color::WHITE, Position(1, 0));
     grid[1][1] = std::make_unique<Pawn>(Color::WHITE, Position(1, 1));
     grid[1][2] = std::make_unique<Pawn>(Color::WHITE, Position(1, 2));
@@ -149,6 +165,7 @@ void Board::initializeWithSpecialPieces() {
     grid[1][6] = std::make_unique<Pawn>(Color::WHITE, Position(1, 6));
     grid[1][7] = std::make_unique<Pawn>(Color::WHITE, Position(1, 7));
     
+
     grid[6][0] = std::make_unique<Pawn>(Color::BLACK, Position(6, 0));
     grid[6][1] = std::make_unique<Pawn>(Color::BLACK, Position(6, 1));
     grid[6][2] = std::make_unique<Pawn>(Color::BLACK, Position(6, 2));
@@ -158,34 +175,42 @@ void Board::initializeWithSpecialPieces() {
     grid[6][6] = std::make_unique<Pawn>(Color::BLACK, Position(6, 6));
     grid[6][7] = std::make_unique<Pawn>(Color::BLACK, Position(6, 7));
     
+
     grid[0][0] = std::make_unique<Rook>(Color::WHITE, Position(0, 0));
     grid[0][7] = std::make_unique<Rook>(Color::WHITE, Position(0, 7));
     grid[7][0] = std::make_unique<Rook>(Color::BLACK, Position(7, 0));
     grid[7][7] = std::make_unique<Rook>(Color::BLACK, Position(7, 7));
     
+
     grid[0][1] = std::make_unique<Knight>(Color::WHITE, Position(0, 1));
     grid[0][6] = std::make_unique<Knight>(Color::WHITE, Position(0, 6));
     grid[7][1] = std::make_unique<Knight>(Color::BLACK, Position(7, 1));
     grid[7][6] = std::make_unique<Knight>(Color::BLACK, Position(7, 6));
-    
+
     grid[0][2] = std::make_unique<Bishop>(Color::WHITE, Position(0, 2));
     grid[0][5] = std::make_unique<Bishop>(Color::WHITE, Position(0, 5));
     grid[7][2] = std::make_unique<Bishop>(Color::BLACK, Position(7, 2));
     grid[7][5] = std::make_unique<Bishop>(Color::BLACK, Position(7, 5));
-    
+
     grid[0][3] = std::make_unique<ArmoredQueen>(Color::WHITE, Position(0, 3));
     grid[7][3] = std::make_unique<ArmoredQueen>(Color::BLACK, Position(7, 3));
-    
+
     grid[0][4] = std::make_unique<King>(Color::WHITE, Position(0, 4));
     grid[7][4] = std::make_unique<King>(Color::BLACK, Position(7, 4));
     
+
     grid[2][4] = std::make_unique<Spy>(Color::WHITE, Color::BLACK, Position(2, 4));
     grid[5][3] = std::make_unique<Spy>(Color::BLACK, Color::WHITE, Position(5, 3));
     
-    armoredQueenHits[Position(0, 3)] = 0;
-    armoredQueenHits[Position(7, 3)] = 0;
-    jokerTransformsUsed[Position(1, 3)] = 0;
-    jokerTransformsUsed[Position(6, 3)] = 0;
+
+    armoredQueenArmor[Position(0, 3)] = 2; 
+    armoredQueenArmor[Position(7, 3)] = 2;  
+    
+    jokerTransformsRemaining[Position(1, 3)] = 2; 
+    jokerTransformsRemaining[Position(6, 3)] = 2;  
+    
+    spyMoveCounter[Position(2, 4)] = 0;  
+    spyMoveCounter[Position(5, 3)] = 0;
     
     whiteKingMoved = false;
     blackKingMoved = false;
@@ -205,8 +230,11 @@ void Board::clear() {
     enPassantAvailable = false;
     enPassantSquare = Position();
     pieceStationaryCounter.clear();
-    armoredQueenHits.clear();
-    jokerTransformsUsed.clear();
+    lastMoveTurn.clear();
+    armoredQueenArmor.clear();
+    jokerTransformsRemaining.clear();
+    jokerCurrentMimic.clear();
+    spyMoveCounter.clear();
     lastCapturedPiece.reset();
     
     whiteKingMoved = false;
@@ -221,7 +249,10 @@ void Board::clear() {
     
     currentSeason = Season::NONE;
     movesSinceSeasonChange = 0;
+    currentTurnNumber = 0;
 }
+
+
 Piece* Board::getPieceAt(Position pos) const {
     if (!pos.isValid()) return nullptr;
     return grid[pos.row][pos.col].get();
@@ -242,15 +273,16 @@ void Board::setPieceAt(Position pos, std::unique_ptr<Piece> piece) {
 
 std::unique_ptr<Piece> Board::removePieceAt(Position pos) {
     if (!pos.isValid()) return nullptr;
-    
+
     pieceStationaryCounter.erase(pos);
-    armoredQueenHits.erase(pos);
-    jokerTransformsUsed.erase(pos);
+    lastMoveTurn.erase(pos);
+    armoredQueenArmor.erase(pos);
+    jokerTransformsRemaining.erase(pos);
+    jokerCurrentMimic.erase(pos);
+    spyMoveCounter.erase(pos);
     
     return std::move(grid[pos.row][pos.col]);
 }
-
-
 
 
 void Board::movePiece(const Move& move) {
@@ -259,36 +291,51 @@ void Board::movePiece(const Move& move) {
     Piece* piece = getPieceAt(move.from);
     if (!piece) return;
     
-    Piece* captured = getPieceAt(move.to);
-    if (captured) {
+
+    Piece* targetPiece = getPieceAt(move.to);
+    if (targetPiece) {
+        if (targetPiece->getType() == PieceType::ARMORED_QUEEN) {
+
+            if (!tryAttackArmoredQueen(move.to)) {
+
+                return;
+            }
+        }
+        
         lastCapturedPiece = removePieceAt(move.to);
         lastCapturedPosition = move.to;
         
-        if (captured->getType() == PieceType::QUEEN || 
-            captured->getType() == PieceType::ARMORED_QUEEN) {
+        if (targetPiece->getType() == PieceType::QUEEN || 
+            targetPiece->getType() == PieceType::ARMORED_QUEEN) {
             enableQueenDoubleMove(piece->getColor());
         }
     }
-    
+
     auto movingPiece = removePieceAt(move.from);
     movingPiece->setPosition(move.to);
     movingPiece->setHasMoved(true);
     setPieceAt(move.to, std::move(movingPiece));
+
+    lastMoveTurn[move.to] = currentTurnNumber;
     
     updateCastlingRights(move);
     
     updateStationaryCounters(move);
     
+
+    updateSpyCounters();
+    
+
     movesSinceSeasonChange++;
     if (movesSinceSeasonChange >= movesPerSeasonChange) {
         advanceSeasonCycle();
     }
-    
+
     addMoveToHistory(move);
     
+
     checkAndExplodeBombs();
 }
-
 
 
 void Board::updateCastlingRights(const Move& move) {
@@ -335,7 +382,6 @@ void Board::setCastlingRight(Color color, bool kingside, bool value) {
         }
     }
 }
-
 
 
 bool Board::isSquareEmpty(Position pos) const {
@@ -390,8 +436,6 @@ Position Board::findKing(Color color) const {
 }
 
 
-
-
 std::vector<Move> Board::getAllLegalMoves(Color color) const {
     std::vector<Move> legalMoves;
     
@@ -414,6 +458,10 @@ std::vector<Move> Board::getLegalMovesForPiece(Position pos) const {
     Piece* piece = getPieceAt(pos);
     if (!piece) return legalMoves;
     
+    if (!canPieceMoveInSeason(pos)) {
+        return legalMoves;  
+    }
+    
     auto possibleMoves = piece->getPossibleMoves(*this);
     
     for (const auto& move : possibleMoves) {
@@ -434,7 +482,7 @@ bool Board::isMoveLegal(const Move& move, Color color) const {
     auto movingPiece = tempBoard.removePieceAt(move.from);
     movingPiece->setPosition(move.to);
     tempBoard.setPieceAt(move.to, std::move(movingPiece));
-    
+
     if (piece->getType() == PieceType::PAWN && move.to == enPassantSquare && enPassantAvailable) {
         int captureRow = (color == Color::WHITE) ? move.to.row - 1 : move.to.row + 1;
         tempBoard.removePieceAt(Position(captureRow, move.to.col));
@@ -510,7 +558,7 @@ void Board::performCastling(const Move& move) {
         rook->setPosition(Position(row, 5));
         rook->setHasMoved(true);
         setPieceAt(Position(row, 5), std::move(rook));
-    } else {  
+    } else {
         auto rook = removePieceAt(Position(row, 0));
         rook->setPosition(Position(row, 3));
         rook->setHasMoved(true);
@@ -518,9 +566,9 @@ void Board::performCastling(const Move& move) {
     }
     
     updateCastlingRights(move);
-    
     addMoveToHistory(move);
 }
+
 
 void Board::setEnPassantSquare(Position pos) {
     enPassantSquare = pos;
@@ -537,16 +585,28 @@ void Board::undoLastMove() {
     
     Move lastMove = moveHistory.back();
     moveHistory.pop_back();
-    
+
     auto piece = removePieceAt(lastMove.to);
     if (piece) {
         piece->setPosition(lastMove.from);
         setPieceAt(lastMove.from, std::move(piece));
     }
-    
+
     if (lastCapturedPiece && lastCapturedPosition.isValid()) {
         setPieceAt(lastCapturedPosition, std::move(lastCapturedPiece));
         lastCapturedPosition = Position();
+    }
+    
+    if (movesSinceSeasonChange > 0) {
+        movesSinceSeasonChange--;
+    }
+    
+
+}
+
+void Board::undoMultipleMoves(int n) {
+    for (int i = 0; i < n && !moveHistory.empty(); i++) {
+        undoLastMove();
     }
 }
 
@@ -644,6 +704,7 @@ bool Board::canPromote(Position pos) const {
     return false;
 }
 
+
 std::vector<Position> Board::getExplosionTargets(Position center) const {
     std::vector<Position> targets;
     int directions[8][2] = {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
@@ -687,7 +748,7 @@ void Board::checkAndExplodeBombs() {
     
     for (const auto& bombPos : bombPositions) {
         auto targets = getExplosionTargets(bombPos);
-        targets.push_back(bombPos); 
+        targets.push_back(bombPos);
         explodePieces(targets);
     }
 }
@@ -716,8 +777,6 @@ void Board::resetQueenDoubleMove(Color color) {
         blackQueenCanDoubleMove = false;
     }
 }
-
-
 
 
 void Board::advanceSeasonCycle() {
@@ -750,62 +809,174 @@ bool Board::canPieceMoveInSeason(Position pos) const {
     
     if (currentSeason == Season::SPRING && 
         (type == PieceType::PAWN || type == PieceType::SOLDIER_PLUS)) {
-
-        return true;
+        
+        auto it = lastMoveTurn.find(pos);
+        if (it == lastMoveTurn.end()) {
+            return true;  
+        }
+        
+        int turnsSinceLastMove = currentTurnNumber - it->second;
+        if (turnsSinceLastMove < 2) {
+            return false; 
+        }
     }
     
     if (currentSeason == Season::AUTUMN && type == PieceType::KNIGHT) {
-        return true;
+        auto it = lastMoveTurn.find(pos);
+        if (it == lastMoveTurn.end()) {
+            return true;
+        }
+        
+        int turnsSinceLastMove = currentTurnNumber - it->second;
+        if (turnsSinceLastMove < 2) {
+            return false;
+        }
     }
     
     return true;
 }
 
 int Board::getMaxMovementInSeason(PieceType type) const {
+
     if (currentSeason == Season::SUMMER && type == PieceType::BISHOP) {
         return 3;
     }
     
+
     if (currentSeason == Season::WINTER && type == PieceType::ROOK) {
         return 4;
     }
     
-    return -1; 
-}
+    return -1;  
 
 
-void Board::damageArmoredQueen(Position pos) {
-    armoredQueenHits[pos]++;
+bool Board::tryAttackArmoredQueen(Position pos) {
+    Piece* piece = getPieceAt(pos);
+    if (!piece || piece->getType() != PieceType::ARMORED_QUEEN) {
+        return true;  
+    }
+    
+    auto it = armoredQueenArmor.find(pos);
+    int currentArmor = (it != armoredQueenArmor.end()) ? it->second : 2;
+    
+    if (currentArmor > 0) {
+
+        armoredQueenArmor[pos] = currentArmor - 1;
+        return false; 
+    }
+
+    return true;
 }
 
 int Board::getArmoredQueenArmor(Position pos) const {
-    auto it = armoredQueenHits.find(pos);
-    if (it == armoredQueenHits.end()) return 2;
-    
-    return std::max(0, 2 - it->second);
+    auto it = armoredQueenArmor.find(pos);
+    if (it == armoredQueenArmor.end()) return 2;
+    return it->second;
 }
 
-bool Board::isArmoredQueenAlive(Position pos) const {
+void Board::resetArmoredQueenArmor(Position pos, int armor) {
+    armoredQueenArmor[pos] = armor;
+}
+
+
+bool Board::transformJoker(Position pos, PieceType targetType) {
     Piece* piece = getPieceAt(pos);
-    if (!piece || piece->getType() != PieceType::ARMORED_QUEEN) return false;
+    if (!piece || piece->getType() != PieceType::JOKER) {
+        return false;
+    }
     
-    return getArmoredQueenArmor(pos) > 0;
+    auto it = jokerTransformsRemaining.find(pos);
+    int remaining = (it != jokerTransformsRemaining.end()) ? it->second : 2;
+    
+    if (remaining <= 0) {
+        return false;  
+    }
+
+    jokerCurrentMimic[pos] = targetType;
+    jokerTransformsRemaining[pos] = remaining - 1;
+    
+    return true;
 }
 
-
-void Board::useJokerTransform(Position pos) {
-    jokerTransformsUsed[pos]++;
+void Board::resetJokerTransform(Position pos) {
+    jokerCurrentMimic.erase(pos);
 }
 
 int Board::getJokerTransformsRemaining(Position pos) const {
-    auto it = jokerTransformsUsed.find(pos);
-    if (it == jokerTransformsUsed.end()) return 2;  
-    
-    return std::max(0, 2 - it->second);
+    auto it = jokerTransformsRemaining.find(pos);
+    if (it == jokerTransformsRemaining.end()) return 2;
+    return it->second;
 }
 
-bool Board::canJokerTransform(Position pos) const {
-    return getJokerTransformsRemaining(pos) > 0;
+bool Board::isJokerTransformed(Position pos) const {
+    return jokerCurrentMimic.find(pos) != jokerCurrentMimic.end();
+}
+
+PieceType Board::getJokerCurrentMimic(Position pos) const {
+    auto it = jokerCurrentMimic.find(pos);
+    if (it == jokerCurrentMimic.end()) return PieceType::JOKER;
+    return it->second;
+}
+
+
+void Board::revealSpy(Position pos) {
+    Piece* piece = getPieceAt(pos);
+    if (!piece || piece->getType() != PieceType::SPY) {
+        return;
+    }
+    
+    Spy* spy = dynamic_cast<Spy*>(piece);
+    if (spy) {
+        spy->reveal();
+    }
+}
+
+void Board::activateSpy(Position pos) {
+    Piece* piece = getPieceAt(pos);
+    if (!piece || piece->getType() != PieceType::SPY) {
+        return;
+    }
+    
+    Spy* spy = dynamic_cast<Spy*>(piece);
+    if (spy && spy->isRevealed()) {
+        spy->activate();
+    }
+}
+
+bool Board::isSpyRevealed(Position pos) const {
+    Piece* piece = getPieceAt(pos);
+    if (!piece || piece->getType() != PieceType::SPY) {
+        return false;
+    }
+    
+    const Spy* spy = dynamic_cast<const Spy*>(piece);
+    return spy && spy->isRevealed();
+}
+
+void Board::updateSpyCounters() {
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Position pos(r, c);
+            Piece* piece = getPieceAt(pos);
+            
+            if (piece && piece->getType() == PieceType::SPY) {
+                Spy* spy = dynamic_cast<Spy*>(piece);
+                if (spy && !spy->isRevealed()) {
+                    spyMoveCounter[pos]++;
+                    
+                    if (spyMoveCounter[pos] >= spyRevealThreshold) {
+                        revealSpy(pos);
+                    }
+                }
+            }
+        }
+    }
+}
+
+int Board::getSpyMovesUntilReveal(Position pos) const {
+    auto it = spyMoveCounter.find(pos);
+    int moves = (it != spyMoveCounter.end()) ? it->second : 0;
+    return std::max(0, spyRevealThreshold - moves);
 }
 
 
@@ -829,11 +1000,11 @@ std::string Board::serialize() const {
        << blackKingsideRookMoved << " " << blackQueensideRookMoved << "\n";
     
     ss << bombThreshold << "\n";
-    
     ss << whiteQueenCanDoubleMove << " " << blackQueenCanDoubleMove << "\n";
-    
     ss << static_cast<int>(currentSeason) << " " << movesSinceSeasonChange << " " 
-       << movesPerSeasonChange << "\n";
+       << movesPerSeasonChange << " " << currentTurnNumber << "\n";
+    
+    ss << spyRevealThreshold << "\n";
     
     ss << moveHistory.size() << "\n";
     for (const auto& move : moveHistory) {
@@ -854,8 +1025,8 @@ void Board::deserialize(const std::string& data) {
             iss >> hasPiece;
             
             if (hasPiece) {
-                int typeInt, colorInt, row, col, hasMoved, stationaryTurns;
-                iss >> typeInt >> colorInt >> row >> col >> hasMoved >> stationaryTurns;
+                int typeInt, colorInt, row, col, hasMoved;
+                iss >> typeInt >> colorInt >> row >> col >> hasMoved;
                 
                 PieceType type = static_cast<PieceType>(typeInt);
                 Color color = static_cast<Color>(colorInt);
@@ -885,23 +1056,30 @@ void Board::deserialize(const std::string& data) {
                         piece = std::make_unique<SoldierPlus>(color, pos);
                         break;
                     case PieceType::ARMORED_QUEEN: {
-                        int hasArmor;
-                        iss >> hasArmor;
+                        int armor;
+                        iss >> armor;
                         piece = std::make_unique<ArmoredQueen>(color, pos);
-                        armoredQueenHits[pos] = hasArmor ? 0 : 2;
+                        armoredQueenArmor[pos] = armor;
                         break;
                     }
                     case PieceType::SPY: {
-                        int revealed, trueOwnerInt, movesLeft;
-                        iss >> revealed >> trueOwnerInt >> movesLeft;
+                        int revealed, trueOwnerInt, moveCounter;
+                        iss >> revealed >> trueOwnerInt >> moveCounter;
                         piece = std::make_unique<Spy>(color, static_cast<Color>(trueOwnerInt), pos);
+                        spyMoveCounter[pos] = moveCounter;
+                        if (revealed) {
+                            dynamic_cast<Spy*>(piece.get())->reveal();
+                        }
                         break;
                     }
                     case PieceType::JOKER: {
-                        int mimicUses;
-                        iss >> mimicUses;
+                        int remaining, mimicInt;
+                        iss >> remaining >> mimicInt;
                         piece = std::make_unique<Joker>(color, pos);
-                        jokerTransformsUsed[pos] = 2 - mimicUses;
+                        jokerTransformsRemaining[pos] = remaining;
+                        if (mimicInt != -1) {
+                            jokerCurrentMimic[pos] = static_cast<PieceType>(mimicInt);
+                        }
                         break;
                     }
                     default:
@@ -920,19 +1098,20 @@ void Board::deserialize(const std::string& data) {
     iss >> epAvail >> epRow >> epCol;
     enPassantAvailable = epAvail;
     enPassantSquare = Position(epRow, epCol);
-
+    
     iss >> whiteKingMoved >> blackKingMoved
         >> whiteKingsideRookMoved >> whiteQueensideRookMoved
         >> blackKingsideRookMoved >> blackQueensideRookMoved;
-
+    
     iss >> bombThreshold;
-
     iss >> whiteQueenCanDoubleMove >> blackQueenCanDoubleMove;
-
+    
     int seasonInt;
-    iss >> seasonInt >> movesSinceSeasonChange >> movesPerSeasonChange;
+    iss >> seasonInt >> movesSinceSeasonChange >> movesPerSeasonChange >> currentTurnNumber;
     currentSeason = static_cast<Season>(seasonInt);
-
+    
+    iss >> spyRevealThreshold;
+    
     int historySize;
     iss >> historySize;
     for (int i = 0; i < historySize; i++) {
