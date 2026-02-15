@@ -14,6 +14,9 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <random>
+#include <chrono>
+#include <vector>
 #include <algorithm>
 
 Board::Board() 
@@ -32,6 +35,34 @@ Board::Board()
     grid.resize(8);
     for (int i = 0; i < 8; ++i) {
         grid[i].resize(8);
+    }
+}
+
+std::unique_ptr<Piece> createRandomPieceForSpy(Color ownerColor, Position pos, std::mt19937& rng) {
+    std::vector<PieceType> possibleTypes = {
+        PieceType::PAWN,
+        PieceType::ROOK,
+        PieceType::KNIGHT,
+        PieceType::BISHOP,
+        PieceType::QUEEN
+    };
+    
+    std::uniform_int_distribution<int> dist(0, possibleTypes.size() - 1);
+    PieceType selectedType = possibleTypes[dist(rng)];
+    
+    switch (selectedType) {
+        case PieceType::PAWN:
+            return std::make_unique<Pawn>(ownerColor, pos);
+        case PieceType::ROOK:
+            return std::make_unique<Rook>(ownerColor, pos);
+        case PieceType::KNIGHT:
+            return std::make_unique<Knight>(ownerColor, pos);
+        case PieceType::BISHOP:
+            return std::make_unique<Bishop>(ownerColor, pos);
+        case PieceType::QUEEN:
+            return std::make_unique<Queen>(ownerColor, pos);
+        default:
+            return std::make_unique<Pawn>(ownerColor, pos);
     }
 }
 
@@ -86,33 +117,72 @@ void Board::setupBoardWithSpecialPieces() {
     grid[1][7] = std::make_unique<Pawn>(Color::BLACK, Position{1, 7});
     
     grid[0][0] = std::make_unique<Rook>(Color::BLACK, Position{0, 0});
-    grid[0][7] = std::make_unique<Rook>(Color::BLACK, Position{0, 7});
-    grid[7][0] = std::make_unique<Rook>(Color::WHITE, Position{7, 0});
-    grid[7][7] = std::make_unique<Rook>(Color::WHITE, Position{7, 7});
-
     grid[0][1] = std::make_unique<Knight>(Color::BLACK, Position{0, 1});
-    grid[0][6] = std::make_unique<Knight>(Color::BLACK, Position{0, 6});
-    grid[7][1] = std::make_unique<Knight>(Color::WHITE, Position{7, 1});
-    grid[7][6] = std::make_unique<Knight>(Color::WHITE, Position{7, 6});
-
     grid[0][2] = std::make_unique<Bishop>(Color::BLACK, Position{0, 2});
-    grid[0][5] = std::make_unique<Bishop>(Color::BLACK, Position{0, 5});
-    grid[7][2] = std::make_unique<Bishop>(Color::WHITE, Position{7, 2});
-    grid[7][5] = std::make_unique<Bishop>(Color::WHITE, Position{7, 5});
-
     grid[0][3] = std::make_unique<ArmoredQueen>(Color::BLACK, Position{0, 3});
-    grid[7][3] = std::make_unique<ArmoredQueen>(Color::WHITE, Position{7, 3});
-    
     grid[0][4] = std::make_unique<King>(Color::BLACK, Position{0, 4});
-    grid[7][4] = std::make_unique<King>(Color::WHITE, Position{7, 4});
+    grid[0][5] = std::make_unique<Bishop>(Color::BLACK, Position{0, 5});
+    grid[0][6] = std::make_unique<Knight>(Color::BLACK, Position{0, 6});
+    grid[0][7] = std::make_unique<Rook>(Color::BLACK, Position{0, 7});
     
-    grid[2][4] = std::make_unique<Spy>(Color::WHITE, std::make_unique<Pawn>(Color::BLACK, Position{2, 4})); 
-    grid[5][3] = std::make_unique<Spy>(Color::BLACK, std::make_unique<Pawn>(Color::WHITE, Position{5, 3}));  
+    grid[7][0] = std::make_unique<Rook>(Color::WHITE, Position{7, 0});
+    grid[7][1] = std::make_unique<Knight>(Color::WHITE, Position{7, 1});
+    grid[7][2] = std::make_unique<Bishop>(Color::WHITE, Position{7, 2});
+    grid[7][3] = std::make_unique<ArmoredQueen>(Color::WHITE, Position{7, 3});
+    grid[7][4] = std::make_unique<King>(Color::WHITE, Position{7, 4});
+    grid[7][5] = std::make_unique<Bishop>(Color::WHITE, Position{7, 5});
+    grid[7][6] = std::make_unique<Knight>(Color::WHITE, Position{7, 6});
+    grid[7][7] = std::make_unique<Rook>(Color::WHITE, Position{7, 7});
+    
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::mt19937 rng(seed);
+    
+    std::vector<Position> whitePositions;
+    whitePositions.push_back(Position(7, 0));
+    whitePositions.push_back(Position(7, 1));
+    whitePositions.push_back(Position(7, 2)); 
+    whitePositions.push_back(Position(7, 3)); 
+    whitePositions.push_back(Position(7, 5)); 
+    whitePositions.push_back(Position(7, 6)); 
+    whitePositions.push_back(Position(7, 7)); 
+    
+    std::vector<Position> blackPositions;
+    blackPositions.push_back(Position(0, 0)); 
+    blackPositions.push_back(Position(0, 1)); 
+    blackPositions.push_back(Position(0, 2)); 
+    blackPositions.push_back(Position(0, 3)); 
+    blackPositions.push_back(Position(0, 5)); 
+    blackPositions.push_back(Position(0, 6));
+    blackPositions.push_back(Position(0, 7)); 
+    
+    std::shuffle(whitePositions.begin(), whitePositions.end(), rng);
+    Position whiteSpyPos = whitePositions[0];
+    Piece* whiteOriginalPiece = getPieceAt(whiteSpyPos);
+    if (whiteOriginalPiece) {
+        auto disguisedWhitePiece = removePieceAt(whiteSpyPos);
+        auto whiteSpy = std::make_unique<Spy>(Color::WHITE, std::move(disguisedWhitePiece));
+        setPieceAt(whiteSpyPos, std::move(whiteSpy));
+        spyMoveCounter[whiteSpyPos] = 0;
+        std::cout << "White Spy placed at position " 
+                  << (char)('a' + whiteSpyPos.col) << (8 - whiteSpyPos.row) 
+                  << std::endl;
+    }
+    
+    std::shuffle(blackPositions.begin(), blackPositions.end(), rng);
+    Position blackSpyPos = blackPositions[0];
+    Piece* blackOriginalPiece = getPieceAt(blackSpyPos);
+    if (blackOriginalPiece) {
+        auto disguisedBlackPiece = removePieceAt(blackSpyPos);
+        auto blackSpy = std::make_unique<Spy>(Color::BLACK, std::move(disguisedBlackPiece));
+        setPieceAt(blackSpyPos, std::move(blackSpy));
+        spyMoveCounter[blackSpyPos] = 0;
+        std::cout << "Black Spy placed at position " 
+                  << (char)('a' + blackSpyPos.col) << (8 - blackSpyPos.row) 
+                  << std::endl;
+    }
     
     jokerTransformsRemaining[Position(1, 3)] = 2;
     jokerTransformsRemaining[Position(6, 3)] = 2;
-    spyMoveCounter[Position(2, 4)] = 0;
-    spyMoveCounter[Position(5, 3)] = 0;
 }
 
 void Board::clear() {
@@ -186,11 +256,22 @@ bool Board::movePiece(const Move& move) {
     Piece* piece = getPieceAt(move.from);
     if (!piece) return false;
 
-    if (!piece->isValidMove(move.from.row, move.from.col, move.to.row, move.to.col, *this)) {
+    if (!isMoveLegal(move, piece->getColor())) {
+        std::cout << "Illegal move: King is in check!" << std::endl;
         return false;
     }
 
     Piece* targetPiece = getPieceAt(move.to);
+    if (targetPiece && targetPiece->getType() == PieceType::KING) {
+        std::cout << "Cannot capture the King!" << std::endl;
+        return false;
+    }
+
+    if (!piece->isValidMove(move.from.row, move.from.col, move.to.row, move.to.col, *this)) {
+        return false;
+    }
+
+
     if (targetPiece) {
         if (targetPiece->getType() == PieceType::ARMORED_QUEEN) {
             if (!tryCaptureArmoredQueen(move.to)) {
@@ -246,6 +327,7 @@ bool Board::movePiece(const Move& move) {
         }
     }
 
+ 
     std::vector<Position> bombPositions;
     for (const auto& entry : pieceStationaryCounter) {
         if (entry.second >= bombThreshold) {
@@ -259,7 +341,6 @@ bool Board::movePiece(const Move& move) {
             Position target(bombPos.row + dir[0], bombPos.col + dir[1]);
             if (target.isValid()) removePieceAt(target);
         }
-
         removePieceAt(bombPos);
     }
 
@@ -587,6 +668,7 @@ void Board::updateSeasonCycle() {
             
             const char* names[] = {"Spring", "Summer", "Autumn", "Winter"};
             std::cout << "Season changed to: " << names[(i + 1) % 4] << std::endl;
+
             switch (currentSeason) {
                 case SPRING:
                     std::cout << "Spring: Pawns can only move once every 2 turns." << std::endl;
@@ -611,7 +693,7 @@ bool Board::canPieceMoveInSeason(Position pos) const {
     if (!piece) return false;
     
     PieceType type = piece->getType();
-    
+
     if (currentSeason == SPRING && (type == PieceType::PAWN || type == PieceType::SPECIAL_PAWN)) {
         auto it = lastMoveTurn.find(pos);
         if (it == lastMoveTurn.end()) return true; 
@@ -691,11 +773,15 @@ void Board::updateSpyCounters() {
             Piece* piece = getPieceAt(pos);
             
             if (piece && piece->getType() == PieceType::SPY) {
-                spyMoveCounter[pos]++;
-                
-                if (spyMoveCounter[pos] >= spyRevealThreshold) {
-                    std::cout << "Spy at " << (char)('a' + c) << (8 - r)
+                Spy* spy = dynamic_cast<Spy*>(piece);
+                if (spy && !spy->isRevealed()) {
+                    spy->incrementMoveCounter();
+                    
+                    if (spy->getMovesUntilReveal() == 0) {
+                        spy->reveal();
+                        std::cout << "Spy at " << (char)('a' + c) << (8 - r)
                               << " is about to be revealed!" << std::endl;
+                    }
                 }
             }
         }

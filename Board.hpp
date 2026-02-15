@@ -43,8 +43,7 @@ private:
     int movesPerSeasonChange;
     std::map<Position, int> lastMoveTurn;
     int currentTurnNumber;
-    
-    
+        
     std::map<Position, int> jokerTransformsRemaining;
     std::map<Position, PieceType> jokerCurrentMimic;
     
