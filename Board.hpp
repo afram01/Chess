@@ -1,15 +1,16 @@
 #ifndef BOARD_HPP
 #define BOARD_HPP
 
-#include "Piece.h"
+#include "piece.h"
 #include "Position.hpp"
 #include "Move.hpp"
+#include "King.h"
+#include "Types.hpp"
+
 #include <vector>
 #include <memory>
 #include <string>
 #include <map>
-
-enum Season;
 
 class Board {
 private:
@@ -42,14 +43,14 @@ private:
     std::map<Position, int> lastMoveTurn;
     int currentTurnNumber;
     
-    std::map<Position, int> armoredQueenArmor;
-    
     std::map<Position, int> jokerTransformsRemaining;
     std::map<Position, PieceType> jokerCurrentMimic;
     
     std::map<Position, int> spyMoveCounter;
     int spyRevealThreshold;
     
+    Board makeTempCopy() const;
+
 public:
     Board();
     
@@ -108,8 +109,9 @@ public:
     int getCurrentTurnNumber() const { return currentTurnNumber; }
     void incrementTurnNumber() { currentTurnNumber++; }
     
-     bool tryAttackArmoredQueen(Position pos);
-    int getArmoredQueenArmor(Position pos) const;
+    void resetArmoredQueenAttackFlags(Color color);
+    bool tryCaptureArmoredQueen(Position pos);
+    void updateSpyCounters();
     
     bool transformJoker(Position pos, PieceType targetType);
     void resetJokerTransform(Position pos);
@@ -117,14 +119,20 @@ public:
     bool isJokerTransformed(Position pos) const;
     PieceType getJokerCurrentMimic(Position pos) const;
     
-    void updateSpyCounters();
-    int getSpyMovesUntilReveal(Position pos) const;
     void setSpyRevealThreshold(int n) { spyRevealThreshold = n; }
+    int getSpyMovesUntilReveal(Position pos) const;
     
     void printBoard() const;
     
     std::string serialize() const;
     void deserialize(const std::string& data);
+
+    bool getWhiteKingMoved()            const { return whiteKingMoved; }
+    bool getBlackKingMoved()            const { return blackKingMoved; }
+    bool getWhiteKingsideRookMoved()    const { return whiteKingsideRookMoved; }
+    bool getWhiteQueensideRookMoved()   const { return whiteQueensideRookMoved; }
+    bool getBlackKingsideRookMoved()    const { return blackKingsideRookMoved; }
+    bool getBlackQueensideRookMoved()   const { return blackQueensideRookMoved; }
 };
 
-#endif 
+#endif
