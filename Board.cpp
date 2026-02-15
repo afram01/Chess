@@ -716,3 +716,228 @@ void Board::resetQueenDoubleMove(Color color) {
         blackQueenCanDoubleMove = false;
     }
 }
+
+
+
+
+void Board::advanceSeasonCycle() {
+    Season seasons[] = {Season::SPRING, Season::SUMMER, Season::AUTUMN, Season::WINTER};
+    
+    if (currentSeason == Season::NONE) {
+        currentSeason = Season::SPRING;
+    } else {
+        for (int i = 0; i < 4; i++) {
+            if (seasons[i] == currentSeason) {
+                currentSeason = seasons[(i + 1) % 4];
+                break;
+            }
+        }
+    }
+    
+    movesSinceSeasonChange = 0;
+    applySeason(currentSeason);
+}
+
+void Board::applySeason(Season season) {
+    currentSeason = season;
+}
+
+bool Board::canPieceMoveInSeason(Position pos) const {
+    Piece* piece = getPieceAt(pos);
+    if (!piece) return false;
+    
+    PieceType type = piece->getType();
+    
+    if (currentSeason == Season::SPRING && 
+        (type == PieceType::PAWN || type == PieceType::SOLDIER_PLUS)) {
+
+        return true;
+    }
+    
+    if (currentSeason == Season::AUTUMN && type == PieceType::KNIGHT) {
+        return true;
+    }
+    
+    return true;
+}
+
+int Board::getMaxMovementInSeason(PieceType type) const {
+    if (currentSeason == Season::SUMMER && type == PieceType::BISHOP) {
+        return 3;
+    }
+    
+    if (currentSeason == Season::WINTER && type == PieceType::ROOK) {
+        return 4;
+    }
+    
+    return -1; 
+}
+
+
+void Board::damageArmoredQueen(Position pos) {
+    armoredQueenHits[pos]++;
+}
+
+int Board::getArmoredQueenArmor(Position pos) const {
+    auto it = armoredQueenHits.find(pos);
+    if (it == armoredQueenHits.end()) return 2;
+    
+    return std::max(0, 2 - it->second);
+}
+
+bool Board::isArmoredQueenAlive(Position pos) const {
+    Piece* piece = getPieceAt(pos);
+    if (!piece || piece->getType() != PieceType::ARMORED_QUEEN) return false;
+    
+    return getArmoredQueenArmor(pos) > 0;
+}
+
+
+void Board::useJokerTransform(Position pos) {
+    jokerTransformsUsed[pos]++;
+}
+
+int Board::getJokerTransformsRemaining(Position pos) const {
+    auto it = jokerTransformsUsed.find(pos);
+    if (it == jokerTransformsUsed.end()) return 2;  
+    
+    return std::max(0, 2 - it->second);
+}
+
+bool Board::canJokerTransform(Position pos) const {
+    return getJokerTransformsRemaining(pos) > 0;
+}
+
+
+std::string Board::serialize() const {
+    std::stringstream ss;
+    
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            if (grid[r][c]) {
+                ss << "1 " << grid[r][c]->serialize() << "\n";
+            } else {
+                ss << "0\n";
+            }
+        }
+    }
+    
+    ss << enPassantAvailable << " " << enPassantSquare.row << " " << enPassantSquare.col << "\n";
+    
+    ss << whiteKingMoved << " " << blackKingMoved << " "
+       << whiteKingsideRookMoved << " " << whiteQueensideRookMoved << " "
+       << blackKingsideRookMoved << " " << blackQueensideRookMoved << "\n";
+    
+    ss << bombThreshold << "\n";
+    
+    ss << whiteQueenCanDoubleMove << " " << blackQueenCanDoubleMove << "\n";
+    
+    ss << static_cast<int>(currentSeason) << " " << movesSinceSeasonChange << " " 
+       << movesPerSeasonChange << "\n";
+    
+    ss << moveHistory.size() << "\n";
+    for (const auto& move : moveHistory) {
+        ss << move.from.row << " " << move.from.col << " " 
+           << move.to.row << " " << move.to.col << "\n";
+    }
+    
+    return ss.str();
+}
+
+void Board::deserialize(const std::string& data) {
+    clear();
+    std::istringstream iss(data);
+    
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            int hasPiece;
+            iss >> hasPiece;
+            
+            if (hasPiece) {
+                int typeInt, colorInt, row, col, hasMoved, stationaryTurns;
+                iss >> typeInt >> colorInt >> row >> col >> hasMoved >> stationaryTurns;
+                
+                PieceType type = static_cast<PieceType>(typeInt);
+                Color color = static_cast<Color>(colorInt);
+                Position pos(row, col);
+                
+                std::unique_ptr<Piece> piece;
+                switch (type) {
+                    case PieceType::KING:
+                        piece = std::make_unique<King>(color, pos);
+                        break;
+                    case PieceType::QUEEN:
+                        piece = std::make_unique<Queen>(color, pos);
+                        break;
+                    case PieceType::ROOK:
+                        piece = std::make_unique<Rook>(color, pos);
+                        break;
+                    case PieceType::BISHOP:
+                        piece = std::make_unique<Bishop>(color, pos);
+                        break;
+                    case PieceType::KNIGHT:
+                        piece = std::make_unique<Knight>(color, pos);
+                        break;
+                    case PieceType::PAWN:
+                        piece = std::make_unique<Pawn>(color, pos);
+                        break;
+                    case PieceType::SOLDIER_PLUS:
+                        piece = std::make_unique<SoldierPlus>(color, pos);
+                        break;
+                    case PieceType::ARMORED_QUEEN: {
+                        int hasArmor;
+                        iss >> hasArmor;
+                        piece = std::make_unique<ArmoredQueen>(color, pos);
+                        armoredQueenHits[pos] = hasArmor ? 0 : 2;
+                        break;
+                    }
+                    case PieceType::SPY: {
+                        int revealed, trueOwnerInt, movesLeft;
+                        iss >> revealed >> trueOwnerInt >> movesLeft;
+                        piece = std::make_unique<Spy>(color, static_cast<Color>(trueOwnerInt), pos);
+                        break;
+                    }
+                    case PieceType::JOKER: {
+                        int mimicUses;
+                        iss >> mimicUses;
+                        piece = std::make_unique<Joker>(color, pos);
+                        jokerTransformsUsed[pos] = 2 - mimicUses;
+                        break;
+                    }
+                    default:
+                        break;
+                }
+                
+                if (piece) {
+                    piece->setHasMoved(hasMoved);
+                    grid[r][c] = std::move(piece);
+                }
+            }
+        }
+    }
+    
+    int epAvail, epRow, epCol;
+    iss >> epAvail >> epRow >> epCol;
+    enPassantAvailable = epAvail;
+    enPassantSquare = Position(epRow, epCol);
+
+    iss >> whiteKingMoved >> blackKingMoved
+        >> whiteKingsideRookMoved >> whiteQueensideRookMoved
+        >> blackKingsideRookMoved >> blackQueensideRookMoved;
+
+    iss >> bombThreshold;
+
+    iss >> whiteQueenCanDoubleMove >> blackQueenCanDoubleMove;
+
+    int seasonInt;
+    iss >> seasonInt >> movesSinceSeasonChange >> movesPerSeasonChange;
+    currentSeason = static_cast<Season>(seasonInt);
+
+    int historySize;
+    iss >> historySize;
+    for (int i = 0; i < historySize; i++) {
+        int fr, fc, tr, tc;
+        iss >> fr >> fc >> tr >> tc;
+        moveHistory.push_back(Move(Position(fr, fc), Position(tr, tc)));
+    }
+}
