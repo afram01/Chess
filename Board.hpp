@@ -1,17 +1,15 @@
 #ifndef BOARD_HPP
 #define BOARD_HPP
 
-#include "piece.h"
+#include "Piece.h"
 #include "Position.hpp"
 #include "Move.hpp"
-#include "King.h"
-#include"Types.hpp"
-
-
 #include <vector>
 #include <memory>
 #include <string>
 #include <map>
+
+enum Season;
 
 class Board {
 private:
@@ -44,6 +42,7 @@ private:
     std::map<Position, int> lastMoveTurn;
     int currentTurnNumber;
     
+    std::map<Position, int> armoredQueenArmor;
     
     std::map<Position, int> jokerTransformsRemaining;
     std::map<Position, PieceType> jokerCurrentMimic;
@@ -109,9 +108,8 @@ public:
     int getCurrentTurnNumber() const { return currentTurnNumber; }
     void incrementTurnNumber() { currentTurnNumber++; }
     
-
-    void resetArmoredQueenAttackFlags(Color color);
-    bool tryCaptureArmoredQueen(Position pos);
+     bool tryAttackArmoredQueen(Position pos);
+    int getArmoredQueenArmor(Position pos) const;
     
     bool transformJoker(Position pos, PieceType targetType);
     void resetJokerTransform(Position pos);

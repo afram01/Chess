@@ -2,23 +2,20 @@
 #define MOVE_HPP
 
 #include "Position.hpp"
-#include <optional>
-
-enum class PieceType;
+#include "Types.hpp"
 
 struct Move
 {
     Position from;
     Position to;
-    std::optional<PieceType> promotionType;
+    PieceType promotionType = QUEEN;
 
-    Move()  = default ;
+    Move() = default;
 
     Move(Position f, Position t)
-        : from(f), to(t)
+        : from(f), to(t), promotionType(QUEEN)
     {
     }
-    
 
     Move(Position f, Position t, PieceType promo)
         : from(f), to(t), promotionType(promo)

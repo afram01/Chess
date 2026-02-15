@@ -17,14 +17,9 @@ struct Position {
         return !(*this == other);
     }
 
-    bool operator<(const Position& other) const {
-        if (row != other.row) return row < other.row;
-        return col < other.col;
-    }
-
     bool isValid() const {
         return row >= 0 && row < 8 && col >= 0 && col < 8;
     }
 };
 
-#endif
+#endif 

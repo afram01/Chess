@@ -2,7 +2,7 @@
 #define TYPES_HPP
 
 #include "Position.hpp"
-#include "piece.h"
+#include "Piece.h"
 
 enum Season {
     SPRING,   
