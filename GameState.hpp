@@ -14,7 +14,7 @@ private:
     GameModeType gameMode;
     Season currentSeason;
     int turnCount;
-    int seasonInterval;
+    int seasonInterval; 
 
     int whiteEnergy;
     int blackEnergy;
@@ -22,33 +22,33 @@ private:
     std::string missionDescription;
     int movesLeft;
 
-    bool canMoveAgain;
+    bool canMoveAgain; 
 
 public:
     GameState();
 
     Color getCurrentTurn() const;
-    void  setCurrentTurn(Color turn);
+    void setCurrentTurn(Color turn);
 
     GameStatus getStatus() const;
-    void       setStatus(GameStatus s);
+    void setStatus(GameStatus s);
 
     GameModeType getGameMode() const;
-    void         setGameMode(GameModeType m);
+    void setGameMode(GameModeType m);
 
     Season getCurrentSeason() const;
-    void   setCurrentSeason(Season s);
+    void setCurrentSeason(Season s);
 
-    int  getTurnCount() const;
+    int getTurnCount() const;
     void incrementTurn();
 
-    int  getEnergy(Color player) const;
+    int getEnergy(Color player) const;
     void setEnergy(Color player, int amount);
     void reduceEnergy(Color player, int amount);
 
     std::string getMissionDescription() const;
-    void        setMissionDescription(const std::string& desc);
-    int  getMovesLeft() const;
+    void setMissionDescription(const std::string& desc);
+    int getMovesLeft() const;
     void setMovesLeft(int moves);
     void decrementMovesLeft();
 
@@ -61,7 +61,7 @@ public:
     bool loadFromFile(const std::string& filename, Board& board);
 
     std::string serialize(const Board& board) const;
-    bool        deserialize(const std::string& data, Board& board);
+    bool deserialize(const std::string& data, Board& board);
 };
 
-#endif
+#endif 

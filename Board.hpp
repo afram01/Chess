@@ -5,7 +5,8 @@
 #include "Position.hpp"
 #include "Move.hpp"
 #include "King.h"
-#include "Types.hpp"
+#include"Types.hpp"
+
 
 #include <vector>
 #include <memory>
@@ -43,14 +44,13 @@ private:
     std::map<Position, int> lastMoveTurn;
     int currentTurnNumber;
     
+    
     std::map<Position, int> jokerTransformsRemaining;
     std::map<Position, PieceType> jokerCurrentMimic;
     
     std::map<Position, int> spyMoveCounter;
     int spyRevealThreshold;
     
-    Board makeTempCopy() const;
-
 public:
     Board();
     
@@ -126,13 +126,6 @@ public:
     
     std::string serialize() const;
     void deserialize(const std::string& data);
-
-    bool getWhiteKingMoved()            const { return whiteKingMoved; }
-    bool getBlackKingMoved()            const { return blackKingMoved; }
-    bool getWhiteKingsideRookMoved()    const { return whiteKingsideRookMoved; }
-    bool getWhiteQueensideRookMoved()   const { return whiteQueensideRookMoved; }
-    bool getBlackKingsideRookMoved()    const { return blackKingsideRookMoved; }
-    bool getBlackQueensideRookMoved()   const { return blackQueensideRookMoved; }
 };
 
 #endif
