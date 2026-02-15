@@ -22,7 +22,7 @@ private:
     std::string missionDescription;
     int movesLeft;
 
-    bool canMoveAgain; 
+    bool canMoveAgain;  
 
 public:
     GameState();

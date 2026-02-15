@@ -39,6 +39,7 @@ void GameEngine::initializeGame() {
     updateGameState();
 }
 
+
 bool GameEngine::processMove(const std::string& input) {
     std::istringstream iss(input);
     std::string fromStr, toStr;
@@ -63,7 +64,7 @@ bool GameEngine::processMove(const std::string& input) {
     Color currentPlayer = state.getCurrentTurn();
     if (board.isInCheck(currentPlayer)) {
         if (!board.isMoveLegal(move, currentPlayer)) {
-            std::cout << " Your king is in CHECK! You must escape check." << std::endl;
+            std::cout << "⚠️  Your king is in CHECK! You must escape check." << std::endl;
             return false;
         }
     }
@@ -257,35 +258,7 @@ std::string GameEngine::getTurnInfo() const {
 
 void GameEngine::updateGameState() {
     Color current = state.getCurrentTurn();
-
-    if (state.getGameMode() == GameModeType::MISSION) {
-        Color opponent = (current == Color::WHITE) ? Color::BLACK : Color::WHITE;
-        bool opponentQueenExists = false;
-
-        for (int r = 0; r < 8; ++r) {
-            for (int c = 0; c < 8; ++c) {
-                Piece* p = board.getPiece(r, c);
-                if (p && p->getColor() == opponent) {
-                    if (p->getType() == PieceType::QUEEN || 
-                        p->getType() == PieceType::ARMORED_QUEEN) {
-                        opponentQueenExists = true;
-                        break;
-                    }
-                }
-            }
-            if (opponentQueenExists) break;
-        }
-
-        if (!opponentQueenExists) {
-            state.setStatus(GameStatus::CHECKMATE);
-            std::cout << "\n🎉 Mission Accomplished! "
-                      << (current == Color::WHITE ? "White" : "Black")
-                      << " captured the enemy queen and WINS!" << std::endl;
-            return;  
-        }
-    }
     
-
     if (board.isCheckmate(current)) {
         state.setStatus(GameStatus::CHECKMATE);
         Color winner = (current == Color::WHITE) ? Color::BLACK : Color::WHITE;

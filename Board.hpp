@@ -43,7 +43,8 @@ private:
     int movesPerSeasonChange;
     std::map<Position, int> lastMoveTurn;
     int currentTurnNumber;
-        
+    
+    
     std::map<Position, int> jokerTransformsRemaining;
     std::map<Position, PieceType> jokerCurrentMimic;
     
@@ -107,7 +108,7 @@ public:
     void updateSeasonCycle();
     int getCurrentTurnNumber() const { return currentTurnNumber; }
     void incrementTurnNumber() { currentTurnNumber++; }
-    
+
     void resetArmoredQueenAttackFlags(Color color);
     bool tryCaptureArmoredQueen(Position pos);
     void updateSpyCounters();
