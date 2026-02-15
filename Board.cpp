@@ -246,7 +246,6 @@ bool Board::movePiece(const Move& move) {
         }
     }
 
-
     std::vector<Position> bombPositions;
     for (const auto& entry : pieceStationaryCounter) {
         if (entry.second >= bombThreshold) {
@@ -260,6 +259,7 @@ bool Board::movePiece(const Move& move) {
             Position target(bombPos.row + dir[0], bombPos.col + dir[1]);
             if (target.isValid()) removePieceAt(target);
         }
+
         removePieceAt(bombPos);
     }
 
@@ -587,7 +587,6 @@ void Board::updateSeasonCycle() {
             
             const char* names[] = {"Spring", "Summer", "Autumn", "Winter"};
             std::cout << "Season changed to: " << names[(i + 1) % 4] << std::endl;
-
             switch (currentSeason) {
                 case SPRING:
                     std::cout << "Spring: Pawns can only move once every 2 turns." << std::endl;
@@ -615,7 +614,7 @@ bool Board::canPieceMoveInSeason(Position pos) const {
     
     if (currentSeason == SPRING && (type == PieceType::PAWN || type == PieceType::SPECIAL_PAWN)) {
         auto it = lastMoveTurn.find(pos);
-        if (it == lastMoveTurn.end()) return true;
+        if (it == lastMoveTurn.end()) return true; 
         
         int halfMovesSinceLastMove = currentTurnNumber - it->second;
         return halfMovesSinceLastMove >= 2;
@@ -733,7 +732,8 @@ std::string Board::serialize() const {
         for (int c = 0; c < 8; ++c) {
             if (grid[r][c]) {
                 ss << static_cast<int>(grid[r][c]->getType()) << ","
-                   << static_cast<int>(grid[r][c]->getColor()) << ";";
+                   << static_cast<int>(grid[r][c]->getColor()) << ","
+                   << grid[r][c]->getMoveCount() << ";";
             } else {
                 ss << "-;";
             }
@@ -746,6 +746,81 @@ std::string Board::serialize() const {
 void Board::deserialize(const std::string& data) {
     clear();
     std::istringstream ss(data);
+    std::string cell;
+    
+    for (int r = 0; r < 8; ++r) {
+        for (int c = 0; c < 8; ++c) {
+            if (!std::getline(ss, cell, ';')) break;
+            
+            if (cell == "-") {
+                continue;
+            }
+            
+            std::istringstream cellSs(cell);
+            std::string typeStr, colorStr, moveCountStr;
+            
+            if (std::getline(cellSs, typeStr, ',') && std::getline(cellSs, colorStr, ',')) {
+                std::getline(cellSs, moveCountStr, ',');
+
+                try {
+                    int typeInt = std::stoi(typeStr);
+                    int colorInt = std::stoi(colorStr);
+                    int moveCount = moveCountStr.empty() ? 0 : std::stoi(moveCountStr);
+                    
+                    PieceType type = static_cast<PieceType>(typeInt);
+                    Color color = static_cast<Color>(colorInt);
+                    Position pos(r, c);
+                    
+                    std::unique_ptr<Piece> piece;
+                    
+                    switch (type) {
+                        case PieceType::KING:
+                            piece = std::make_unique<King>(color, pos);
+                            break;
+                        case PieceType::QUEEN:
+                            piece = std::make_unique<Queen>(color, pos);
+                            break;
+                        case PieceType::ROOK:
+                            piece = std::make_unique<Rook>(color, pos);
+                            break;
+                        case PieceType::BISHOP:
+                            piece = std::make_unique<Bishop>(color, pos);
+                            break;
+                        case PieceType::KNIGHT:
+                            piece = std::make_unique<Knight>(color, pos);
+                            break;
+                        case PieceType::PAWN:
+                            piece = std::make_unique<Pawn>(color, pos);
+                            break;
+                        case PieceType::SPECIAL_PAWN:
+                            piece = std::make_unique<SpecialPawn>(color, pos);
+                            break;
+                        case PieceType::ARMORED_QUEEN:
+                            piece = std::make_unique<ArmoredQueen>(color, pos);
+                            break;
+                        case PieceType::SPY: {
+                            Color realOwner = (color == Color::WHITE) ? Color::BLACK : Color::WHITE;
+                            auto disguise = std::make_unique<Pawn>(color, pos);
+                            piece = std::make_unique<Spy>(realOwner, std::move(disguise));
+                            break;
+                        }
+                        case PieceType::JOKER:
+                            piece = std::make_unique<Joker>(color, pos);
+                            break;
+                    }
+                    
+                    if (piece) {
+                        for (int m = 0; m < moveCount; ++m) {
+                            piece->incrementMoveCount();
+                        }
+                        grid[r][c] = std::move(piece);
+                    }
+                } catch (...) {
+                    continue;
+                }
+            }
+        }
+    }
 }
 
 bool Board::tryCaptureArmoredQueen(Position pos) {

@@ -34,10 +34,9 @@ void GameEngine::newGame(GameModeType mode) {
 }
 
 void GameEngine::initializeGame() {
-    moveHistory.clear();
     state.setCurrentTurn(Color::WHITE);
     state.setStatus(GameStatus::PLAYING);
-    std::cout << "The game has begun. White's turn." << std::endl;
+    updateGameState();
 }
 
 bool GameEngine::processMove(const std::string& input) {
@@ -74,6 +73,7 @@ bool GameEngine::processMove(const std::string& input) {
 
     Piece* targetPiece = board.getPiece(to.row, to.col);
     bool killedOpponentQueen = false;
+    
     if (targetPiece && targetPiece->getColor() != currentPlayer) {
         if (targetPiece->getType() == PieceType::QUEEN || 
             targetPiece->getType() == PieceType::ARMORED_QUEEN) {
@@ -88,9 +88,9 @@ bool GameEngine::processMove(const std::string& input) {
 
     board.incrementTurnNumber();
 
+
     if (killedOpponentQueen) {
-        std::cout << "\n=== MASSACRE! ===" << std::endl;
-        std::cout << "You killed opponent's queen!" << std::endl;
+        std::cout << "\nMassacre! You killed opponent's queen!" << std::endl;
         std::cout << "You can make ONE more move this turn!" << std::endl;
         std::cout << "Do you want to move again? (y/n): ";
         
@@ -135,7 +135,6 @@ bool GameEngine::processMove(const std::string& input) {
             return true;
         }
     }
-    
 
     if (state.getGameMode() == GameModeType::MISSION) {
         state.decrementMovesLeft();
@@ -172,7 +171,10 @@ Color GameEngine::getCurrentTurn() const {
 }
 
 bool GameEngine::isGameOver() const { 
-    return state.getStatus() != GameStatus::PLAYING; 
+    GameStatus status = state.getStatus();
+    return status == GameStatus::CHECKMATE || 
+           status == GameStatus::STALEMATE || 
+           status == GameStatus::DRAW;
 }
 
 std::vector<Position> GameEngine::getValidMoves(Position pos) {
@@ -210,6 +212,7 @@ void GameEngine::saveGame(const std::string& filename) {
 
 bool GameEngine::loadGame(const std::string& filename) {
     if (state.loadFromFile(filename, board)) {
+        updateGameState();
         std::cout << "Game loaded: " << filename << std::endl;
         return true;
     }
@@ -309,7 +312,7 @@ MoveRecord GameEngine::createMoveRecord(const Move& move) {
     
     rec.playerColor = state.getCurrentTurn();
     rec.notation = positionToString(move.from) + "-" + positionToString(move.to);
-    rec.capturedPiece = PieceType::PAWN;  
+    rec.capturedPiece = PieceType::PAWN;
     rec.wasCastling = false;
     rec.wasEnPassant = false;
     rec.wasPromotion = board.canPromote(move.to);

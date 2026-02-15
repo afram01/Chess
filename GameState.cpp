@@ -135,7 +135,15 @@ bool GameState::deserialize(const std::string& data, Board& board) {
     }
 
     std::string boardData;
-    std::getline(ss, boardData);
+    std::string line;
+    while (std::getline(ss, line)) {
+        boardData += line;
+    }
+    if (boardData.empty()) {
+        std::cerr << "Error: board data is empty in save file!" << std::endl;
+        return false;
+    }
     board.deserialize(boardData);
+    board.setCurrentSeason(currentSeason);
     return true;
 }
