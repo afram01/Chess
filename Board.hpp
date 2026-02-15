@@ -56,6 +56,7 @@ public:
     
     void setupBoard();
     void setupBoardWithSpecialPieces();
+    void setupCheckScenario();  
     void clear();
     
     Piece* getPiece(int row, int col) const;
@@ -108,7 +109,7 @@ public:
     void updateSeasonCycle();
     int getCurrentTurnNumber() const { return currentTurnNumber; }
     void incrementTurnNumber() { currentTurnNumber++; }
-
+    
     void resetArmoredQueenAttackFlags(Color color);
     bool tryCaptureArmoredQueen(Position pos);
     void updateSpyCounters();

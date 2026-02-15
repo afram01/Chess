@@ -13,6 +13,8 @@ GameState::GameState()
       whiteEnergy(100),
       blackEnergy(100),
       movesLeft(0),
+      missionType(CAPTURE_QUEEN),
+      targetPosition({-1,-1}),
       canMoveAgain(false) {}
 
 Color GameState::getCurrentTurn() const { return currentTurn; }
@@ -50,6 +52,11 @@ void GameState::setMissionDescription(const std::string& desc) { missionDescript
 int GameState::getMovesLeft() const { return movesLeft; }
 void GameState::setMovesLeft(int moves) { movesLeft = moves; }
 void GameState::decrementMovesLeft() { if (movesLeft > 0) movesLeft--; }
+
+MissionType GameState::getMissionType() const { return missionType; }
+void GameState::setMissionType(MissionType t) { missionType = t; }
+Position GameState::getTargetPosition() const { return targetPosition; }
+void GameState::setTargetPosition(Position p) { targetPosition = p; }
 
 bool GameState::getCanMoveAgain() const { return canMoveAgain; }
 void GameState::setCanMoveAgain(bool value) { canMoveAgain = value; }

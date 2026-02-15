@@ -16,7 +16,16 @@ enum GameStatus {
     CHECK,
     CHECKMATE,
     STALEMATE,
-    DRAW
+    DRAW,
+    MISSION_WIN, 
+    MISSION_FAIL  
+};
+
+
+enum MissionType {
+    CAPTURE_QUEEN,    
+    REACH_SQUARE,  
+    ESCAPE_CHECK  
 };
 
 enum GameModeType {
@@ -44,4 +53,4 @@ struct MoveRecord {
           wasPromotion(false) {}
 };
 
-#endif 
+#endif

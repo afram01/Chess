@@ -21,8 +21,10 @@ private:
 
     std::string missionDescription;
     int movesLeft;
+    MissionType missionType;     
+    Position targetPosition;      
 
-    bool canMoveAgain;  
+    bool canMoveAgain;
 
 public:
     GameState();
@@ -52,6 +54,11 @@ public:
     void setMovesLeft(int moves);
     void decrementMovesLeft();
 
+    MissionType getMissionType() const;
+    void setMissionType(MissionType t);
+    Position getTargetPosition() const;
+    void setTargetPosition(Position p);
+
     bool getCanMoveAgain() const;
     void setCanMoveAgain(bool value);
 
@@ -64,4 +71,4 @@ public:
     bool deserialize(const std::string& data, Board& board);
 };
 
-#endif 
+#endif
