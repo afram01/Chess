@@ -521,3 +521,198 @@ void Board::performCastling(const Move& move) {
     
     addMoveToHistory(move);
 }
+
+void Board::setEnPassantSquare(Position pos) {
+    enPassantSquare = pos;
+    enPassantAvailable = true;
+}
+
+
+void Board::addMoveToHistory(const Move& move) {
+    moveHistory.push_back(move);
+}
+
+void Board::undoLastMove() {
+    if (moveHistory.empty()) return;
+    
+    Move lastMove = moveHistory.back();
+    moveHistory.pop_back();
+    
+    auto piece = removePieceAt(lastMove.to);
+    if (piece) {
+        piece->setPosition(lastMove.from);
+        setPieceAt(lastMove.from, std::move(piece));
+    }
+    
+    if (lastCapturedPiece && lastCapturedPosition.isValid()) {
+        setPieceAt(lastCapturedPosition, std::move(lastCapturedPiece));
+        lastCapturedPosition = Position();
+    }
+}
+
+
+std::vector<Piece*> Board::getAllPieces(Color color) const {
+    std::vector<Piece*> pieces;
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Piece* piece = getPieceAt(r, c);
+            if (piece && piece->getColor() == color) {
+                pieces.push_back(piece);
+            }
+        }
+    }
+    return pieces;
+}
+
+int Board::countPieces(Color color) const {
+    return getAllPieces(color).size();
+}
+
+int Board::getMaterialValue(Color color) const {
+    int value = 0;
+    std::map<PieceType, int> pieceValues = {
+        {PieceType::PAWN, 1},
+        {PieceType::KNIGHT, 3},
+        {PieceType::BISHOP, 3},
+        {PieceType::ROOK, 5},
+        {PieceType::QUEEN, 9},
+        {PieceType::KING, 0},
+        {PieceType::SOLDIER_PLUS, 2},
+        {PieceType::ARMORED_QUEEN, 10},
+        {PieceType::SPY, 2},
+        {PieceType::JOKER, 3}
+    };
+    
+    for (const auto& piece : getAllPieces(color)) {
+        value += pieceValues[piece->getType()];
+    }
+    
+    return value;
+}
+
+std::map<PieceType, int> Board::getPieceCounts(Color color) const {
+    std::map<PieceType, int> counts;
+    
+    for (const auto& piece : getAllPieces(color)) {
+        counts[piece->getType()]++;
+    }
+    
+    return counts;
+}
+
+
+void Board::promotePawn(Position pos, PieceType newType) {
+    Piece* pawn = getPieceAt(pos);
+    if (!pawn || (pawn->getType() != PieceType::PAWN && pawn->getType() != PieceType::SOLDIER_PLUS)) {
+        return;
+    }
+    
+    Color color = pawn->getColor();
+    std::unique_ptr<Piece> newPiece;
+    
+    switch (newType) {
+        case PieceType::QUEEN:
+            newPiece = std::make_unique<Queen>(color, pos);
+            break;
+        case PieceType::ROOK:
+            newPiece = std::make_unique<Rook>(color, pos);
+            break;
+        case PieceType::BISHOP:
+            newPiece = std::make_unique<Bishop>(color, pos);
+            break;
+        case PieceType::KNIGHT:
+            newPiece = std::make_unique<Knight>(color, pos);
+            break;
+        default:
+            return;
+    }
+    
+    newPiece->setHasMoved(true);
+    removePieceAt(pos);
+    setPieceAt(pos, std::move(newPiece));
+}
+
+bool Board::canPromote(Position pos) const {
+    Piece* piece = getPieceAt(pos);
+    if (!piece || (piece->getType() != PieceType::PAWN && piece->getType() != PieceType::SOLDIER_PLUS)) {
+        return false;
+    }
+    
+    if (piece->getColor() == Color::WHITE && pos.row == 7) return true;
+    if (piece->getColor() == Color::BLACK && pos.row == 0) return true;
+    
+    return false;
+}
+
+std::vector<Position> Board::getExplosionTargets(Position center) const {
+    std::vector<Position> targets;
+    int directions[8][2] = {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0},{1,1}};
+    
+    for (auto& dir : directions) {
+        Position pos(center.row + dir[0], center.col + dir[1]);
+        if (pos.isValid() && getPieceAt(pos)) {
+            targets.push_back(pos);
+        }
+    }
+    return targets;
+}
+
+void Board::explodePieces(const std::vector<Position>& positions) {
+    for (const auto& pos : positions) {
+        removePieceAt(pos);
+    }
+}
+
+void Board::updateStationaryCounters(const Move& move) {
+    pieceStationaryCounter.erase(move.to);
+    
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Position pos(r, c);
+            if (getPieceAt(pos) && pos != move.to) {
+                pieceStationaryCounter[pos]++;
+            }
+        }
+    }
+}
+
+void Board::checkAndExplodeBombs() {
+    std::vector<Position> bombPositions;
+    
+    for (const auto& entry : pieceStationaryCounter) {
+        if (entry.second >= bombThreshold) {
+            bombPositions.push_back(entry.first);
+        }
+    }
+    
+    for (const auto& bombPos : bombPositions) {
+        auto targets = getExplosionTargets(bombPos);
+        targets.push_back(bombPos); 
+        explodePieces(targets);
+    }
+}
+
+
+void Board::enableQueenDoubleMove(Color color) {
+    if (color == Color::WHITE) {
+        whiteQueenCanDoubleMove = true;
+    } else {
+        blackQueenCanDoubleMove = true;
+    }
+}
+
+bool Board::canQueenDoubleMove(Color color) const {
+    if (color == Color::WHITE) {
+        return whiteQueenCanDoubleMove;
+    } else {
+        return blackQueenCanDoubleMove;
+    }
+}
+
+void Board::resetQueenDoubleMove(Color color) {
+    if (color == Color::WHITE) {
+        whiteQueenCanDoubleMove = false;
+    } else {
+        blackQueenCanDoubleMove = false;
+    }
+}
