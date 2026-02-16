@@ -271,7 +271,7 @@ bool Board::movePiece(const Move& move) {
     if (!piece) return false;
 
     if (!isMoveLegal(move, piece->getColor())) {
-        std::cout << "Illegal move: King is in check!" << std::endl;
+        std::cout << "Illegal move: King would be in check!" << std::endl;
         return false;
     }
 
@@ -285,7 +285,27 @@ bool Board::movePiece(const Move& move) {
         return false;
     }
 
-    if (targetPiece) {
+    bool isEnPassantCapture = false;
+    Position enPassantCapturedPawnPos;
+    
+    if ((piece->getType() == PieceType::PAWN || piece->getType() == PieceType::SPECIAL_PAWN) &&
+        move.from.col != move.to.col && !targetPiece) {
+        
+        if (enPassantAvailable && move.to == enPassantSquare) {
+            isEnPassantCapture = true;
+            enPassantCapturedPawnPos = Position(move.from.row, move.to.col);
+            
+            std::cout << "En Passant capture! Capturing pawn at " 
+                      << (char)('a' + enPassantCapturedPawnPos.col) 
+                      << (8 - enPassantCapturedPawnPos.row) << std::endl;
+        }
+    }
+
+    if (isEnPassantCapture) {
+        lastCapturedPiece = removePieceAt(enPassantCapturedPawnPos);
+        lastCapturedPosition = enPassantCapturedPawnPos;
+    }
+    else if (targetPiece) {
         if (targetPiece->getType() == PieceType::ARMORED_QUEEN) {
             if (!tryCaptureArmoredQueen(move.to)) {
                 std::cout << "Armored Queen survived the attack!" << std::endl;
@@ -315,6 +335,21 @@ bool Board::movePiece(const Move& move) {
     
     lastMoveTurn[move.to] = currentTurnNumber;
     lastMoveTurn.erase(move.from);
+
+    clearEnPassant();
+    
+    if ((piece->getType() == PieceType::PAWN || piece->getType() == PieceType::SPECIAL_PAWN)) {
+        int rowDiff = abs(move.to.row - move.from.row);
+        if (rowDiff == 2) {
+            int direction = (piece->getColor() == Color::WHITE) ? -1 : 1;
+            Position epSquare(move.from.row + direction, move.from.col);
+            setEnPassantSquare(epSquare);
+            
+            std::cout << "En Passant square set at " 
+                      << (char)('a' + epSquare.col) 
+                      << (8 - epSquare.row) << std::endl;
+        }
+    }
 
     if (piece->getType() == PieceType::KING) {
         if (piece->getColor() == Color::WHITE) whiteKingMoved = true;
@@ -394,6 +429,7 @@ bool Board::movePiece(const Move& move) {
     moveHistory.push_back(move);
     return true;
 }
+
 
 bool Board::isSquareAttacked(Position pos, Color byColor) const {
     for (int r = 0; r < 8; ++r) {
@@ -492,6 +528,28 @@ bool Board::isMoveLegal(const Move& move, Color color) const {
                 tempBoard.grid[r][c] = grid[r][c]->clone();
             }
         }
+    }
+    
+    tempBoard.enPassantAvailable = this->enPassantAvailable;
+    tempBoard.enPassantSquare = this->enPassantSquare;
+    
+    Piece* piece = tempBoard.getPieceAt(move.from);
+    if (!piece) return true;
+    
+    bool isEnPassantCapture = false;
+    Position enPassantCapturedPawnPos;
+    
+    if ((piece->getType() == PieceType::PAWN || piece->getType() == PieceType::SPECIAL_PAWN) &&
+        move.from.col != move.to.col && !tempBoard.getPieceAt(move.to)) {
+        
+        if (tempBoard.enPassantAvailable && move.to == tempBoard.enPassantSquare) {
+            isEnPassantCapture = true;
+            enPassantCapturedPawnPos = Position(move.from.row, move.to.col);
+        }
+    }
+    
+    if (isEnPassantCapture) {
+        tempBoard.removePieceAt(enPassantCapturedPawnPos);
     }
     
     auto movingPiece = tempBoard.removePieceAt(move.from);
@@ -646,10 +704,10 @@ void Board::undoMultipleMoves(int n) {
 void Board::enableQueenDoubleMove(Color color) {
     if (color == Color::WHITE) {
         whiteQueenCanDoubleMove = true;
-        std::cout << "Massacre! The white king can move twice (or skip)." << std::endl;
+        std::cout << "Massacre! The white queen can move twice (or skip)." << std::endl;
     } else {
         blackQueenCanDoubleMove = true;
-        std::cout << "Massacre! The black king can move twice (or skip)." << std::endl;
+        std::cout << "Massacre! The black queen can move twice (or skip)." << std::endl;
     }
 }
 
