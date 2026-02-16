@@ -45,6 +45,7 @@ public :
     bool getIsSpecial() const ;
     int getMoveCount() const ;
     void incrementMoveCount() ;
+    void decrementMoveCount() { if (moveCount > 0) moveCount--; }
 
     Position getPosition() const ;
     void setPosition(Position pos) ;
@@ -60,8 +61,8 @@ public :
     virtual std::unique_ptr<Piece> clone() const = 0 ; 
     virtual std::vector<Position> getPossibleMoves(const Board& board) const ;
 
+
     virtual std::string serialize() const ;
 };
 
 #endif
-
