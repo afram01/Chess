@@ -4,37 +4,41 @@
 #include "Position.hpp"
 #include "piece.h"
 
-enum Season {
-    SPRING,   
-    SUMMER,   
-    AUTUMN,   
-    WINTER    
+enum Season
+{
+    SPRING,
+    SUMMER,
+    AUTUMN,
+    WINTER
 };
 
-enum GameStatus {
+enum GameStatus
+{
     PLAYING,
     CHECK,
     CHECKMATE,
     STALEMATE,
     DRAW,
-    MISSION_WIN, 
-    MISSION_FAIL  
+    MISSION_WIN,
+    MISSION_FAIL
 };
 
-
-enum MissionType {
-    CAPTURE_QUEEN,    
-    REACH_SQUARE,  
-    ESCAPE_CHECK  
+enum MissionType
+{
+    CAPTURE_QUEEN,
+    REACH_SQUARE,
+    ESCAPE_CHECK
 };
 
-enum GameModeType {
+enum GameModeType
+{
     STANDARD,
     ENERGY,
     MISSION
 };
 
-struct MoveRecord {
+struct MoveRecord
+{
     Move move;
     PieceType movedPiece;
     PieceType capturedPiece;
@@ -43,14 +47,33 @@ struct MoveRecord {
     bool wasCastling;
     bool wasEnPassant;
     bool wasPromotion;
-    
-    MoveRecord() 
+
+    int prevTurnCount;
+    int prevWhiteEnergy;
+    int prevBlackEnergy;
+    int prevMovesLeft;
+    Season prevSeason;
+    bool prevCanMoveAgain;
+    GameStatus prevStatus;
+    Color prevCurrentTurn;
+
+    MoveRecord()
         : movedPiece(PieceType::PAWN),
           capturedPiece(PieceType::PAWN),
           playerColor(Color::WHITE),
           wasCastling(false),
           wasEnPassant(false),
-          wasPromotion(false) {}
+          wasPromotion(false),
+          prevTurnCount(0),
+          prevWhiteEnergy(100),
+          prevBlackEnergy(100),
+          prevMovesLeft(0),
+          prevSeason(SPRING),
+          prevCanMoveAgain(false),
+          prevStatus(PLAYING),
+          prevCurrentTurn(Color::WHITE)
+    {
+    }
 };
 
 #endif

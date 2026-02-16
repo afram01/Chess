@@ -13,6 +13,10 @@ void GameEngine::newGame()
 
 void GameEngine::newGame(GameModeType mode)
 {
+    moveHistory.clear();
+    state.resetTurnCount();
+    state.setCurrentSeason(SPRING);
+
     if (mode == GameModeType::STANDARD)
     {
         board.setupBoard();
@@ -46,7 +50,7 @@ void GameEngine::newGame(GameModeType mode)
             state.setTargetPosition({4, 3});
             state.setMissionDescription("Move your King to d4 in 15 moves!");
             state.setMovesLeft(15);
-            board.setupBoard(); 
+            board.setupBoard();
         }
         else
         {
@@ -100,7 +104,7 @@ bool GameEngine::processMove(const std::string &input)
     {
         if (!board.isMoveLegal(move, currentPlayer))
         {
-            std::cout << " Your king is in CHECK! You must escape check." << std::endl;
+            std::cout << "⚠️  Your king is in CHECK! You must escape check." << std::endl;
             return false;
         }
     }
@@ -116,18 +120,14 @@ bool GameEngine::processMove(const std::string &input)
         return false;
     }
 
+    board.incrementTurnNumber();
+
     if (!board.movePiece(move))
     {
+        board.decrementTurnNumber();
         std::cout << "Illegal move!" << std::endl;
         return false;
     }
-
-    board.incrementTurnNumber(); 
-
-    state.incrementTurn();
-    state.updateSeason();  
-
-    board.setCurrentSeason(state.getCurrentSeason()); 
 
     if (state.getGameMode() == GameModeType::ENERGY)
     {
@@ -152,6 +152,7 @@ bool GameEngine::processMove(const std::string &input)
     if (state.getGameMode() == GameModeType::MISSION)
     {
         state.decrementMovesLeft();
+
         bool missionComplete = false;
         std::string winMessage;
 
@@ -220,8 +221,22 @@ bool GameEngine::processMove(const std::string &input)
         }
     }
 
-    moveHistory.push_back(createMoveRecord(move));
+    MoveRecord rec = createMoveRecord(move);
+
+    rec.prevTurnCount = state.getTurnCount();
+    rec.prevWhiteEnergy = state.getEnergy(Color::WHITE);
+    rec.prevBlackEnergy = state.getEnergy(Color::BLACK);
+    rec.prevMovesLeft = state.getMovesLeft();
+    rec.prevSeason = state.getCurrentSeason();
+    rec.prevCanMoveAgain = state.getCanMoveAgain();
+    rec.prevStatus = state.getStatus();
+    rec.prevCurrentTurn = state.getCurrentTurn();
+
+    moveHistory.push_back(rec);
     state.incrementTurn();
+    state.updateSeason();
+    board.setCurrentSeason(state.getCurrentSeason());
+
     if (board.canQueenDoubleMove(currentPlayer))
     {
         std::cout << "\n MASSACRE! "
@@ -240,6 +255,7 @@ bool GameEngine::processMove(const std::string &input)
             std::cout << "Enter your QUEEN's second move: ";
             std::string secondInput;
             std::getline(std::cin, secondInput);
+
             std::istringstream iss2(secondInput);
             std::string fromStr2, toStr2;
             iss2 >> fromStr2 >> toStr2;
@@ -252,27 +268,13 @@ bool GameEngine::processMove(const std::string &input)
                 if (p2 && p2->getColor() == currentPlayer &&
                     (p2->getType() == PieceType::QUEEN || p2->getType() == PieceType::ARMORED_QUEEN))
                 {
-                    if (board.movePiece(Move(from2, to2)))
-                    {
-                        board.incrementTurnNumber(); 
-
-                        state.incrementTurn(); 
-                        state.updateSeason();
-                        board.setCurrentSeason(state.getCurrentSeason()); 
-                    }
-                    else
-                    {
-                        std::cout << "Illegal second move!" << std::endl;
-                    }
+                    board.movePiece(Move(from2, to2));
+                    board.incrementTurnNumber();
                 }
                 else
                 {
-                    std::cout << " You must move your QUEEN!" << std::endl;
+                    std::cout << "❌ You must move your QUEEN!" << std::endl;
                 }
-            }
-            else
-            {
-                std::cout << "Invalid input!" << std::endl;
             }
         }
     }
@@ -339,10 +341,24 @@ void GameEngine::undoMove()
         return;
     }
 
-    board.undoLastMove();
+    MoveRecord last = moveHistory.back();
     moveHistory.pop_back();
-    switchPlayerTurn();
 
+    board.undoLastMove();
+
+    state.setCurrentTurn(last.prevCurrentTurn);
+    state.setStatus(last.prevStatus);
+    state.setCurrentSeason(last.prevSeason);
+    state.setCanMoveAgain(last.prevCanMoveAgain);
+
+    state.setEnergy(Color::WHITE, last.prevWhiteEnergy);
+    state.setEnergy(Color::BLACK, last.prevBlackEnergy);
+
+    state.setMovesLeft(last.prevMovesLeft);
+
+    state.setTurnCount(last.prevTurnCount);
+
+    updateGameState();
     std::cout << "Last move undone." << std::endl;
 }
 
@@ -443,7 +459,7 @@ void GameEngine::updateGameState()
             std::cout << "\n🎉 Mission Accomplished! "
                       << (current == Color::WHITE ? "White" : "Black")
                       << " captured the enemy queen and WINS!" << std::endl;
-            return; 
+            return;
         }
     }
 

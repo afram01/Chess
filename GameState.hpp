@@ -7,22 +7,23 @@
 #include <vector>
 #include <fstream>
 
-class GameState {
+class GameState
+{
 private:
     Color currentTurn;
     GameStatus status;
     GameModeType gameMode;
     Season currentSeason;
     int turnCount;
-    int seasonInterval; 
+    int seasonInterval;
 
     int whiteEnergy;
     int blackEnergy;
 
     std::string missionDescription;
     int movesLeft;
-    MissionType missionType;     
-    Position targetPosition;      
+    MissionType missionType;
+    Position targetPosition;
 
     bool canMoveAgain;
 
@@ -49,7 +50,7 @@ public:
     void reduceEnergy(Color player, int amount);
 
     std::string getMissionDescription() const;
-    void setMissionDescription(const std::string& desc);
+    void setMissionDescription(const std::string &desc);
     int getMovesLeft() const;
     void setMovesLeft(int moves);
     void decrementMovesLeft();
@@ -64,11 +65,15 @@ public:
 
     void updateSeason();
 
-    void saveToFile(const std::string& filename, const Board& board) const;
-    bool loadFromFile(const std::string& filename, Board& board);
+    void saveToFile(const std::string &filename, const Board &board) const;
+    bool loadFromFile(const std::string &filename, Board &board);
 
-    std::string serialize(const Board& board) const;
-    bool deserialize(const std::string& data, Board& board);
+    std::string serialize(const Board &board) const;
+    bool deserialize(const std::string &data, Board &board);
+
+    void resetTurnCount();
+
+    void setTurnCount(int t);
 };
 
 #endif

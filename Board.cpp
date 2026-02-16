@@ -95,6 +95,7 @@ void Board::setupBoard() {
     grid[7][4] = std::make_unique<King>(Color::WHITE, Position{7, 4});
 }
 
+
 void Board::setupCheckScenario() {
     clear();
     
@@ -152,20 +153,20 @@ void Board::setupBoardWithSpecialPieces() {
     
     std::vector<Position> whitePositions;
     whitePositions.push_back(Position(7, 0)); 
-    whitePositions.push_back(Position(7, 1));
+    whitePositions.push_back(Position(7, 1)); 
     whitePositions.push_back(Position(7, 2)); 
     whitePositions.push_back(Position(7, 3)); 
-    whitePositions.push_back(Position(7, 5));
+    whitePositions.push_back(Position(7, 5)); 
     whitePositions.push_back(Position(7, 6)); 
     whitePositions.push_back(Position(7, 7)); 
     
     std::vector<Position> blackPositions;
     blackPositions.push_back(Position(0, 0)); 
     blackPositions.push_back(Position(0, 1)); 
-    blackPositions.push_back(Position(0, 2)); 
+    blackPositions.push_back(Position(0, 2));
     blackPositions.push_back(Position(0, 3)); 
     blackPositions.push_back(Position(0, 5)); 
-    blackPositions.push_back(Position(0, 6)); 
+    blackPositions.push_back(Position(0, 6));
     blackPositions.push_back(Position(0, 7)); 
     
     std::shuffle(whitePositions.begin(), whitePositions.end(), rng);
@@ -283,7 +284,6 @@ bool Board::movePiece(const Move& move) {
     if (!piece->isValidMove(move.from.row, move.from.col, move.to.row, move.to.col, *this)) {
         return false;
     }
-
 
     if (targetPiece) {
         if (targetPiece->getType() == PieceType::ARMORED_QUEEN) {
@@ -705,7 +705,7 @@ bool Board::canPieceMoveInSeason(Position pos) const {
     if (!piece) return false;
     
     PieceType type = piece->getType();
-    
+
     if (currentSeason == SPRING && (type == PieceType::PAWN || type == PieceType::SPECIAL_PAWN)) {
         auto it = lastMoveTurn.find(pos);
         if (it == lastMoveTurn.end()) return true;  
@@ -807,20 +807,21 @@ int Board::getSpyMovesUntilReveal(Position pos) const {
 }
 
 void Board::printBoard() const {
-    std::cout << "\n   a  b  c  d  e  f  g  h\n";
+    std::cout << "\n    a   b   c   d   e   f   g   h\n";
+
     for (int r = 0; r < 8; ++r) {
         std::cout << (8 - r) << " ";
         for (int c = 0; c < 8; ++c) {
             Piece* p = getPiece(r, c);
-            if (p) {
-                std::cout << std::setw(2) << p->getSymbol() << " ";
-            } else {
-                std::cout << " . ";
-            }
+            if (p)
+                std::cout << "| " << p->getSymbol();
+            else
+                std::cout << "| _ ";
         }
-        std::cout << (8 - r) << "\n";
+        std::cout << "| " << (8 - r) << "\n";
     }
-    std::cout << "   a  b  c  d  e  f  g  h\n\n";
+
+    std::cout << "    a   b   c   d   e   f   g   h\n\n";
 }
 
 std::string Board::serialize() const {
