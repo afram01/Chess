@@ -5,8 +5,7 @@
 #include "Position.hpp"
 #include "Move.hpp"
 #include "King.h"
-#include"Types.hpp"
-
+#include "Types.hpp"
 
 #include <vector>
 #include <memory>
@@ -50,6 +49,8 @@ private:
     
     std::map<Position, int> spyMoveCounter;
     int spyRevealThreshold;
+    
+    void resetCastlingFlags();
     
 public:
     Board();
