@@ -301,12 +301,16 @@ Color GameEngine::getCurrentTurn() const
     return state.getCurrentTurn();
 }
 
+
 bool GameEngine::isGameOver() const
 {
     GameStatus status = state.getStatus();
+
     if (status == GameStatus::CHECKMATE ||
         status == GameStatus::STALEMATE ||
-        status == GameStatus::DRAW)
+        status == GameStatus::DRAW ||
+        status == GameStatus::MISSION_WIN ||
+        status == GameStatus::MISSION_FAIL)
         return true;
 
     if (state.getGameMode() == GameModeType::MISSION && state.getMovesLeft() <= 0)
