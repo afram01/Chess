@@ -66,7 +66,7 @@ bool SpecialPawn::isValidMove(int fromRow, int fromCol, int toRow, int toCol, co
 }
 
 std::string SpecialPawn::getSymbol() const {
-    return (color == Color::WHITE) ? "♙+" : "♟+";
+    return (color == Color::WHITE) ? "♙ " : "♟ ";
 }
 
 std::vector<Position> SpecialPawn::getPossibleMoves(int row, int col, const Board& board) const {
