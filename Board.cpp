@@ -285,6 +285,55 @@ bool Board::movePiece(const Move& move) {
         return false;
     }
 
+    if (piece->getType() == PieceType::KING && 
+        move.from.row == move.to.row && 
+        abs(move.to.col - move.from.col) == 2) {
+        
+        int row = move.from.row;
+        bool isKingside = (move.to.col > move.from.col);
+        
+        std::cout << "Performing " << (isKingside ? "Kingside" : "Queenside") 
+                  << " Castling!" << std::endl;
+        
+        auto king = removePieceAt(move.from);
+        king->incrementMoveCount();
+        setPieceAt(move.to, std::move(king));
+        
+        if (isKingside) {
+            auto rook = removePiece(row, 7);
+            if (rook) {
+                rook->incrementMoveCount();
+                setPiece(row, 5, std::move(rook));
+            }
+        } else {
+            auto rook = removePiece(row, 0);
+            if (rook) {
+                rook->incrementMoveCount();
+                setPiece(row, 3, std::move(rook));
+            }
+        }
+        
+        if (piece->getColor() == Color::WHITE) {
+            whiteKingMoved = true;
+            if (isKingside) whiteKingsideRookMoved = true;
+            else whiteQueensideRookMoved = true;
+        } else {
+            blackKingMoved = true;
+            if (isKingside) blackKingsideRookMoved = true;
+            else blackQueensideRookMoved = true;
+        }
+        
+        clearEnPassant();
+        moveHistory.push_back(move);
+        
+        movesSinceSeasonChange++;
+        if (movesSinceSeasonChange >= movesPerSeasonChange) {
+            updateSeasonCycle();
+        }
+        
+        return true;
+    }
+
     bool isEnPassantCapture = false;
     Position enPassantCapturedPawnPos;
     
@@ -536,6 +585,31 @@ bool Board::isMoveLegal(const Move& move, Color color) const {
     Piece* piece = tempBoard.getPieceAt(move.from);
     if (!piece) return true;
     
+    if (piece->getType() == PieceType::KING && 
+        move.from.row == move.to.row && 
+        abs(move.to.col - move.from.col) == 2) {
+        
+        int row = move.from.row;
+        bool isKingside = (move.to.col > move.from.col);
+        
+        auto king = tempBoard.removePieceAt(move.from);
+        tempBoard.setPieceAt(move.to, std::move(king));
+        
+        if (isKingside) {
+            auto rook = tempBoard.removePiece(row, 7);
+            if (rook) {
+                tempBoard.setPiece(row, 5, std::move(rook));
+            }
+        } else {
+            auto rook = tempBoard.removePiece(row, 0);
+            if (rook) {
+                tempBoard.setPiece(row, 3, std::move(rook));
+            }
+        }
+        
+        return !tempBoard.isInCheck(color);
+    }
+    
     bool isEnPassantCapture = false;
     Position enPassantCapturedPawnPos;
     
@@ -680,9 +754,41 @@ void Board::undoLastMove() {
     Move lastMove = moveHistory.back();
     moveHistory.pop_back();
     
+    Piece* pieceAtTo = getPieceAt(lastMove.to);
+    bool wasCastling = false;
+    int castlingRookFromCol = -1;
+    int castlingRookToCol = -1;
+    
+    if (pieceAtTo && pieceAtTo->getType() == PieceType::KING) {
+        int colDiff = lastMove.to.col - lastMove.from.col;
+        if (abs(colDiff) == 2) {
+            wasCastling = true;
+            if (lastMove.to.col == 6) {
+                castlingRookFromCol = 5;
+                castlingRookToCol = 7;
+            } else if (lastMove.to.col == 2) {
+                castlingRookFromCol = 3;
+                castlingRookToCol = 0;
+            }
+        }
+    }
+    
+    if (pieceAtTo) {
+        pieceAtTo->decrementMoveCount();
+    }
+    
     auto piece = removePieceAt(lastMove.to);
     if (piece) {
         setPieceAt(lastMove.from, std::move(piece));
+    }
+    
+    if (wasCastling && castlingRookFromCol != -1 && castlingRookToCol != -1) {
+        int row = lastMove.from.row;
+        auto rook = removePiece(row, castlingRookFromCol);
+        if (rook) {
+            rook->decrementMoveCount();
+            setPiece(row, castlingRookToCol, std::move(rook));
+        }
     }
     
     if (lastCapturedPiece && lastCapturedPosition.isValid()) {
@@ -690,8 +796,42 @@ void Board::undoLastMove() {
         lastCapturedPosition = Position();
     }
     
+    resetCastlingFlags();
+    
     if (movesSinceSeasonChange > 0) {
         movesSinceSeasonChange--;
+    }
+}
+
+void Board::resetCastlingFlags() {
+    whiteKingMoved = false;
+    blackKingMoved = false;
+    whiteKingsideRookMoved = false;
+    whiteQueensideRookMoved = false;
+    blackKingsideRookMoved = false;
+    blackQueensideRookMoved = false;
+    
+    for (int r = 0; r < 8; ++r) {
+        for (int c = 0; c < 8; ++c) {
+            Piece* piece = getPiece(r, c);
+            if (!piece) continue;
+            
+            if (piece->getType() == PieceType::KING) {
+                if (piece->getColor() == Color::WHITE && r == 7 && c == 4)
+                    whiteKingMoved = (piece->getMoveCount() > 0);
+                else if (piece->getColor() == Color::BLACK && r == 0 && c == 4)
+                    blackKingMoved = (piece->getMoveCount() > 0);
+            }
+            else if (piece->getType() == PieceType::ROOK) {
+                if (piece->getColor() == Color::WHITE) {
+                    if (r == 7 && c == 0) whiteQueensideRookMoved = (piece->getMoveCount() > 0);
+                    if (r == 7 && c == 7) whiteKingsideRookMoved = (piece->getMoveCount() > 0);
+                } else {
+                    if (r == 0 && c == 0) blackQueensideRookMoved = (piece->getMoveCount() > 0);
+                    if (r == 0 && c == 7) blackKingsideRookMoved = (piece->getMoveCount() > 0);
+                }
+            }
+        }
     }
 }
 
