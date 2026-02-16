@@ -55,10 +55,18 @@ bool Pawn::isValidMove(int fromRow, int fromCol, int toRow, int toCol, const Boa
             return true;
         }
         
-        if (board.isEnPassantAvailable()) {
+        if (!targetPiece && board.isEnPassantAvailable()) {
             Position enPassantSquare = board.getEnPassantSquare();
+            
             if (toRow == enPassantSquare.row && toCol == enPassantSquare.col) {
-                return true;
+                Position enemyPawnPos(fromRow, toCol);
+                Piece* enemyPawn = board.getPieceAt(enemyPawnPos);
+                
+                if (enemyPawn && enemyPawn->getColor() != color &&
+                    (enemyPawn->getType() == PieceType::PAWN || 
+                     enemyPawn->getType() == PieceType::SPECIAL_PAWN)) {
+                    return true;
+                }
             }
         }
     }
@@ -101,19 +109,34 @@ vector<Position> Pawn::getPossibleMoves(int row, int col, const Board& board) co
     for (int dc : captureDirections) {
         int newCol = col + dc;
         if (newRow >= 0 && newRow <= 7 && newCol >= 0 && newCol <= 7) {
-            if (isValidMove(row, col, newRow, newCol, board)) {
-                possibleMoves.push_back(Position(newRow, newCol));
+            Position targetPos(newRow, newCol);
+            Piece* targetPiece = board.getPieceAt(targetPos);
+            
+            if (targetPiece && targetPiece->getColor() != color) {
+                possibleMoves.push_back(targetPos);
+            }
+            
+            if (board.isEnPassantAvailable()) {
+                Position epSquare = board.getEnPassantSquare();
+                
+                if (targetPos.row == epSquare.row && targetPos.col == epSquare.col) {
+                    Position enemyPawnPos(row, newCol);
+                    Piece* enemyPawn = board.getPieceAt(enemyPawnPos);
+                    
+                    const auto& history = board.getMoveHistory();
+                    if (!history.empty()) {
+                        Move lastMove = history.back();
+                        if (lastMove.to.row == enemyPawnPos.row && 
+                            lastMove.to.col == enemyPawnPos.col &&
+                            abs(lastMove.to.row - lastMove.from.row) == 2) {
+                            possibleMoves.push_back(targetPos);
+                        }
+                    }
+                }
             }
         }
     }
 
-    if (board.isEnPassantAvailable()) {
-        Position epSquare = board.getEnPassantSquare();
-        if (epSquare.row == newRow && abs(epSquare.col - col) == 1) {
-            possibleMoves.push_back(epSquare);
-        }
-    }
-    
     return possibleMoves;
 }
 
