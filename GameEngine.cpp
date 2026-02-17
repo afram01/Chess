@@ -77,212 +77,234 @@ void GameEngine::initializeGame()
 
 bool GameEngine::processMove(const std::string &input)
 {
-    std::istringstream iss(input);
-    std::string fromStr, toStr;
-    iss >> fromStr >> toStr;
+    std::istringstream iss(input) ;
+    std::string fromStr , toStr ;
+    iss >> fromStr >> toStr ;
 
-    Position from = parsePosition(fromStr);
-    Position to = parsePosition(toStr);
+    Position from = parsePosition(fromStr) ;
+    Position to   = parsePosition(toStr) ;
 
     if (!from.isValid() || !to.isValid())
     {
-        std::cout << "Invalid position!" << std::endl;
-        return false;
+        std::cout << "Invalid position!" << std::endl ;
+        return false ;
     }
 
-    Move move(from, to);
+    Move move(from, to) ;
 
-    Piece *p = board.getPiece(from.row, from.col);
+    Piece *p = board.getPiece(from.row, from.col) ;
     if (!p || p->getColor() != state.getCurrentTurn())
     {
-        std::cout << "Invalid piece or wrong turn!" << std::endl;
-        return false;
+        std::cout << "Invalid piece or wrong turn !!!" << std::endl ;
+        return false ;
     }
 
-    Color currentPlayer = state.getCurrentTurn();
+    Color currentPlayer = state.getCurrentTurn() ;
+
     if (board.isInCheck(currentPlayer))
     {
         if (!board.isMoveLegal(move, currentPlayer))
         {
-            std::cout << "⚠️  Your king is in CHECK! You must escape check." << std::endl;
-            return false;
+            std::cout << "Your king is in CHECK !!! You must escape check." << std::endl ;
+            return false ;
         }
     }
 
-    PieceType movedPieceType = p->getType();
+    PieceType movedPieceType = p->getType() ;
 
     if (!board.canPieceMoveInSeason(from))
     {
-        const char *seasonNames[] = {"Spring", "Summer", "Autumn", "Winter"};
+        const char *seasonNames[] = {"Spring", "Summer", "Autumn", "Winter"} ;
         std::cout << "This piece cannot move this season ("
                   << seasonNames[static_cast<int>(board.getCurrentSeason())]
-                  << ")." << std::endl;
-        return false;
+                  << ")." << std::endl ;
+        return false ;
     }
 
-    board.incrementTurnNumber();
+    // بررسی capture قبل از حرکت
+    Piece* targetPiece = board.getPiece(to.row, to.col) ;
+    bool isCapture     = (targetPiece != nullptr) ;
+    PieceType capturedType = isCapture ? targetPiece->getType() : PieceType::PAWN;
+
+    // ذخیره انرژی دقیقاً قبل از هر تغییری - برای undo صحیح
+    int energyWhiteBefore = state.getEnergy(Color::WHITE) ;
+    int energyBlackBefore = state.getEnergy(Color::BLACK) ;
+
+    board.incrementTurnNumber() ;
 
     if (!board.movePiece(move))
     {
-        board.decrementTurnNumber();
-        std::cout << "Illegal move!" << std::endl;
-        return false;
+        board.decrementTurnNumber() ;
+        std::cout << "Illegal move !!!" << std::endl ;
+        return false ;
     }
+
 
     if (state.getGameMode() == GameModeType::ENERGY)
     {
-        int cost = calculateMoveCost(movedPieceType);
-        state.reduceEnergy(currentPlayer, cost);
+        int cost = calculateMoveCost(movedPieceType) ;
+
+
+        state.reduceEnergy(currentPlayer, cost) ;
+
+        if (isCapture)
+        {
+            int refund = calculateMoveCost(capturedType) ;
+            int newEnergy = state.getEnergy(currentPlayer) + refund ;
+            if (newEnergy > 100) newEnergy = 100 ;
+            state.setEnergy(currentPlayer, newEnergy) ;
+        }
+
 
         if (state.getEnergy(currentPlayer) <= 0)
         {
-            Color winner = (currentPlayer == Color::WHITE) ? Color::BLACK : Color::WHITE;
-            std::cout << "Energy exhausted! "
+            Color winner = (currentPlayer == Color::WHITE) ? Color::BLACK : Color::WHITE ;
+            std::cout << "Energy exhausted !!! "
                       << (currentPlayer == Color::WHITE ? "White" : "Black")
-                      << " has run out of energy!" << std::endl;
-            std::cout << "\n"
-                      << (winner == Color::WHITE ? "WHITE" : " BLACK")
-                      << " WINS!!!" << std::endl;
-
-            state.setStatus(GameStatus::DRAW);
-            return true;
+                      << " has run out of energy!" << std::endl ;
+            std::cout << "\n" << (winner == Color::WHITE ? "WHITE" : "BLACK")
+                      << " WINS!!!" << std::endl ;
+            state.setStatus(GameStatus::DRAW) ;
+            return true ;
         }
     }
 
+
     if (state.getGameMode() == GameModeType::MISSION)
     {
-        state.decrementMovesLeft();
+        state.decrementMovesLeft() ;
 
-        bool missionComplete = false;
-        std::string winMessage;
+        bool missionComplete = false ;
+        std::string winMessage ;
 
         if (state.getMissionType() == CAPTURE_QUEEN)
         {
-            Color enemy = (currentPlayer == Color::WHITE) ? Color::BLACK : Color::WHITE;
-            bool enemyQueenExists = false;
-            for (int r = 0; r < 8; r++)
+            Color enemy = (currentPlayer == Color::WHITE) ? Color::BLACK : Color::WHITE ;
+            bool enemyQueenExists = false ;
+            for (int r = 0 ; r < 8 ; r++)
             {
-                for (int c = 0; c < 8; c++)
+                for (int c = 0 ; c < 8 ; c++)
                 {
-                    Piece *pc = board.getPiece(r, c);
+                    Piece *pc = board.getPiece(r, c) ;
                     if (pc && pc->getColor() == enemy &&
                         (pc->getType() == PieceType::QUEEN || pc->getType() == PieceType::ARMORED_QUEEN))
                     {
-                        enemyQueenExists = true;
-                        break;
+                        enemyQueenExists = true ;
+                        break ;
                     }
                 }
             }
             if (!enemyQueenExists)
             {
-                missionComplete = true;
-                winMessage = (currentPlayer == Color::WHITE ? "White" : "Black");
-                winMessage += " captured the enemy Queen! Mission complete!";
+                missionComplete = true ;
+                winMessage = (currentPlayer == Color::WHITE ? "White" : "Black") ;
+                winMessage += " captured the enemy Queen !!! Mission complete!" ;
             }
         }
         else if (state.getMissionType() == REACH_SQUARE)
         {
-            Position target = state.getTargetPosition();
-            Piece *atTarget = board.getPiece(target.row, target.col);
+            Position target = state.getTargetPosition() ;
+            Piece *atTarget = board.getPiece(target.row, target.col) ;
             if (atTarget && atTarget->getType() == PieceType::KING &&
                 atTarget->getColor() == Color::WHITE)
             {
-                missionComplete = true;
-                char col = 'a' + target.col;
-                char row = '0' + (8 - target.row);
-                winMessage = "White King reached ";
-                winMessage += col;
-                winMessage += row;
-                winMessage += "! Mission complete!";
+                missionComplete = true ;
+                char col = 'a' + target.col ;
+                char row = '0' + (8 - target.row) ;
+                winMessage = "White King reached " ;
+                winMessage += col ;
+                winMessage += row ;
+                winMessage += "! Mission complete!" ;
             }
         }
         else if (state.getMissionType() == ESCAPE_CHECK)
         {
             if (!board.isInCheck(currentPlayer))
             {
-                missionComplete = true;
-                winMessage = (currentPlayer == Color::WHITE ? "White" : "Black");
-                winMessage += " escaped check! Mission complete!";
+                missionComplete = true ;
+                winMessage = (currentPlayer == Color::WHITE ? "White" : "Black") ;
+                winMessage += " escaped check! Mission complete!" ;
             }
         }
 
         if (missionComplete)
         {
-            std::cout << "\n🏆 " << winMessage << std::endl;
-            state.setStatus(GameStatus::MISSION_WIN);
-            return true;
+            std::cout << "\n" << winMessage << std::endl ;
+            state.setStatus(GameStatus::MISSION_WIN) ;
+            return true ;
         }
 
         if (state.getMovesLeft() <= 0)
         {
-            std::cout << "\nMoves exhausted! Mission failed." << std::endl;
-            state.setStatus(GameStatus::MISSION_FAIL);
-            return true;
+            std::cout << "\nMoves exhausted !!! Mission failed." << std::endl ;
+            state.setStatus(GameStatus::MISSION_FAIL) ;
+            return true ;
         }
     }
 
-    MoveRecord rec = createMoveRecord(move);
+    MoveRecord rec = createMoveRecord(move) ;
 
-    rec.prevTurnCount = state.getTurnCount();
-    rec.prevWhiteEnergy = state.getEnergy(Color::WHITE);
-    rec.prevBlackEnergy = state.getEnergy(Color::BLACK);
-    rec.prevMovesLeft = state.getMovesLeft();
-    rec.prevSeason = state.getCurrentSeason();
-    rec.prevCanMoveAgain = state.getCanMoveAgain();
-    rec.prevStatus = state.getStatus();
-    rec.prevCurrentTurn = state.getCurrentTurn();
+    rec.prevTurnCount    = state.getTurnCount() ;
+    rec.prevWhiteEnergy  = energyWhiteBefore ;  
+    rec.prevBlackEnergy  = energyBlackBefore ; 
+    rec.prevMovesLeft    = state.getMovesLeft() ;
+    rec.prevSeason       = state.getCurrentSeason() ;
+    rec.prevCanMoveAgain = state.getCanMoveAgain() ;
+    rec.prevStatus       = state.getStatus() ;
+    rec.prevCurrentTurn  = state.getCurrentTurn() ;
 
-    moveHistory.push_back(rec);
-    state.incrementTurn();
-    state.updateSeason();
-    board.setCurrentSeason(state.getCurrentSeason());
+    moveHistory.push_back(rec) ;
+    state.incrementTurn() ;
+    state.updateSeason() ;
+    board.setCurrentSeason(state.getCurrentSeason()) ;
 
-    if (board.canQueenDoubleMove(currentPlayer))
+    if (state.getGameMode() == GameModeType::STANDARD &&
+        board.canQueenDoubleMove(currentPlayer))
     {
-        std::cout << "\n MASSACRE! "
+        std::cout << "\nMASSACRE! "
                   << (currentPlayer == Color::WHITE ? "White" : "Black")
-                  << "'s QUEEN can move a second time (or skip)." << std::endl;
-        std::cout << "Do you want to move your QUEEN again? (y/n): ";
+                  << "'s QUEEN can move a second time (or skip)." << std::endl ;
+        std::cout << "Do you want to move your QUEEN again? (y/n): " ;
 
-        char choice;
-        std::cin >> choice;
-        std::cin.ignore();
+        char choice ;
+        std::cin >> choice ;
+        std::cin.ignore() ;
 
-        board.resetQueenDoubleMove(currentPlayer);
+        board.resetQueenDoubleMove(currentPlayer) ;
 
         if (choice == 'y' || choice == 'Y')
         {
-            std::cout << "Enter your QUEEN's second move: ";
-            std::string secondInput;
-            std::getline(std::cin, secondInput);
+            std::cout << "Enter your QUEEN's second move: " ;
+            std::string secondInput ;
+            std::getline(std::cin, secondInput) ;
 
-            std::istringstream iss2(secondInput);
-            std::string fromStr2, toStr2;
-            iss2 >> fromStr2 >> toStr2;
-            Position from2 = parsePosition(fromStr2);
-            Position to2 = parsePosition(toStr2);
+            std::istringstream iss2(secondInput) ;
+            std::string fromStr2, toStr2 ;
+            iss2 >> fromStr2 >> toStr2 ;
+            Position from2 = parsePosition(fromStr2) ;
+            Position to2   = parsePosition(toStr2) ;
 
             if (from2.isValid() && to2.isValid())
             {
-                Piece *p2 = board.getPiece(from2.row, from2.col);
+                Piece *p2 = board.getPiece(from2.row, from2.col) ;
                 if (p2 && p2->getColor() == currentPlayer &&
                     (p2->getType() == PieceType::QUEEN || p2->getType() == PieceType::ARMORED_QUEEN))
                 {
-                    board.movePiece(Move(from2, to2));
-                    board.incrementTurnNumber();
+                    board.movePiece(Move(from2, to2)) ;
+                    board.incrementTurnNumber() ;
                 }
                 else
                 {
-                    std::cout << "❌ You must move your QUEEN!" << std::endl;
+                    std::cout << "Invalid piece for second move. Must be your Queen." << std::endl ;
                 }
             }
         }
     }
 
-    switchPlayerTurn();
-    updateGameState();
+    switchPlayerTurn() ;
+    updateGameState() ;
 
-    return true;
+    return true ;
 }
 
 void GameEngine::switchPlayerTurn()
@@ -301,14 +323,13 @@ Color GameEngine::getCurrentTurn() const
     return state.getCurrentTurn();
 }
 
-
 bool GameEngine::isGameOver() const
 {
     GameStatus status = state.getStatus();
 
     if (status == GameStatus::CHECKMATE ||
         status == GameStatus::STALEMATE ||
-        status == GameStatus::DRAW ||
+        status == GameStatus::DRAW      ||
         status == GameStatus::MISSION_WIN ||
         status == GameStatus::MISSION_FAIL)
         return true;
@@ -350,17 +371,16 @@ void GameEngine::undoMove()
 
     board.undoLastMove();
 
+    // بازگردانی کامل state به قبل از حرکت
     state.setCurrentTurn(last.prevCurrentTurn);
     state.setStatus(last.prevStatus);
     state.setCurrentSeason(last.prevSeason);
     state.setCanMoveAgain(last.prevCanMoveAgain);
-
-    state.setEnergy(Color::WHITE, last.prevWhiteEnergy);
-    state.setEnergy(Color::BLACK, last.prevBlackEnergy);
-
+    state.setEnergy(Color::WHITE, last.prevWhiteEnergy);  // انرژی قبل از حرکت
+    state.setEnergy(Color::BLACK, last.prevBlackEnergy);  // انرژی قبل از حرکت
     state.setMovesLeft(last.prevMovesLeft);
-
     state.setTurnCount(last.prevTurnCount);
+    board.setCurrentSeason(last.prevSeason);
 
     updateGameState();
     std::cout << "Last move undone." << std::endl;
@@ -397,9 +417,7 @@ GameState *GameEngine::getGameState()
 void GameEngine::displayBoard()
 {
     board.printBoard();
-
     std::cout << getTurnInfo() << std::endl;
-
     const char *seasonNames[] = {"Spring", "Summer", "Autumn", "Winter"};
     std::cout << "Season: " << seasonNames[static_cast<int>(board.getCurrentSeason())] << std::endl;
 }
@@ -460,7 +478,7 @@ void GameEngine::updateGameState()
         if (!opponentQueenExists)
         {
             state.setStatus(GameStatus::CHECKMATE);
-            std::cout << "\n🎉 Mission Accomplished! "
+            std::cout << "\nMission Accomplished! "
                       << (current == Color::WHITE ? "White" : "Black")
                       << " captured the enemy queen and WINS!" << std::endl;
             return;
@@ -471,18 +489,16 @@ void GameEngine::updateGameState()
     {
         state.setStatus(GameStatus::CHECKMATE);
         Color winner = (current == Color::WHITE) ? Color::BLACK : Color::WHITE;
-        std::cout << "\n╔═════════════════════════════╗" << std::endl;
-        std::cout << "║          CHECKMATE!         ║" << std::endl;
-        std::cout << "╚═════════════════════════════╝" << "\n"
+        std::cout << "\n+=============================+" << std::endl;
+        std::cout << "|          CHECKMATE!         |" << std::endl;
+        std::cout << "+=============================+" << "\n"
                   << (winner == Color::WHITE ? "White" : "Black")
                   << " wins!" << std::endl;
-
         std::cout << (current == Color::WHITE ? "White" : "Black")
                   << "'s king has been checkmated!" << std::endl;
-
         if (state.getGameMode() == GameModeType::MISSION)
         {
-            std::cout << "\n MISSION COMPLETED!!!" << std::endl;
+            std::cout << "\nMISSION COMPLETED!!!" << std::endl;
         }
     }
     else if (board.isStalemate(current))
@@ -493,13 +509,12 @@ void GameEngine::updateGameState()
     else if (board.isInCheck(current))
     {
         state.setStatus(GameStatus::CHECK);
-        std::cout << "\n╔═════════════════════════════╗" << std::endl;
-        std::cout << "║        CHECK!               ║" << std::endl;
-        std::cout << "╚═════════════════════════════╝" << std::endl;
-
+        std::cout << "\n+=============================+" << std::endl;
+        std::cout << "|           CHECK!            |" << std::endl;
+        std::cout << "+=============================+" << std::endl;
         std::cout << (current == Color::WHITE ? "White" : "Black")
                   << "'s king is under attack!" << std::endl;
-        std::cout << "\n You MUST escape check! Choose one:" << std::endl;
+        std::cout << "\nYou MUST escape check! Choose one:" << std::endl;
         std::cout << "  1. Move your king to a safe square" << std::endl;
         std::cout << "  2. Block the attack with another piece" << std::endl;
         std::cout << "  3. Capture the attacking piece" << std::endl;
@@ -547,12 +562,12 @@ MoveRecord GameEngine::createMoveRecord(const Move &move)
         rec.movedPiece = movedPiece->getType();
     }
 
-    rec.playerColor = state.getCurrentTurn();
-    rec.notation = positionToString(move.from) + "-" + positionToString(move.to);
+    rec.playerColor   = state.getCurrentTurn();
+    rec.notation      = positionToString(move.from) + "-" + positionToString(move.to);
     rec.capturedPiece = PieceType::PAWN;
-    rec.wasCastling = false;
-    rec.wasEnPassant = false;
-    rec.wasPromotion = board.canPromote(move.to);
+    rec.wasCastling   = false;
+    rec.wasEnPassant  = false;
+    rec.wasPromotion  = board.canPromote(move.to);
 
     return rec;
 }
