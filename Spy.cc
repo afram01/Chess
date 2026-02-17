@@ -3,6 +3,7 @@
 #include "Types.hpp"
 #include "Pawn.h"
 #include "Rook.h"
+#include "piece.h"
 #include "Knight.h"
 #include "Bishop.h"
 #include "Queen.h"
@@ -24,8 +25,9 @@ Spy::Spy(Color realOwner, unique_ptr<Piece> pieceToDisguise)
 {
     disguisedPiece = std::move(pieceToDisguise);
     
-
-    color = disguisedPiece->getColor();
+    disguisedOwner = disguisedPiece->getColor();
+    
+    color = disguisedOwner;
     
     disguisedPiece->setPosition(position);
 }
@@ -33,13 +35,27 @@ Spy::Spy(Color realOwner, unique_ptr<Piece> pieceToDisguise)
 bool Spy::isValidMove(int fromRow, int fromCol, int toRow, int toCol, const Board& board) const {
     if (!disguisedPiece) return false;
     
-    return disguisedPiece->isValidMove(fromRow, fromCol, toRow, toCol, board);
+    Color originalColor = disguisedPiece->getColor();
+    const_cast<Piece*>(disguisedPiece.get())->setColor(realOwner);
+    
+    bool isValid = disguisedPiece->isValidMove(fromRow, fromCol, toRow, toCol, board);
+    
+    const_cast<Piece*>(disguisedPiece.get())->setColor(originalColor);
+    
+    return isValid;
 }
 
 vector<Position> Spy::getPossibleMoves(int row, int col, const Board& board) const {
     if (!disguisedPiece) return {};
     
-    return disguisedPiece->getPossibleMoves(row, col, board);
+    Color originalColor = disguisedPiece->getColor();
+    const_cast<Piece*>(disguisedPiece.get())->setColor(realOwner);
+    
+    vector<Position> moves = disguisedPiece->getPossibleMoves(row, col, board);
+    
+    const_cast<Piece*>(disguisedPiece.get())->setColor(originalColor);
+    
+    return moves;
 }
 
 bool Spy::hasSpecialAbility() const {
@@ -81,10 +97,11 @@ void Spy::reveal() {
         cout << "🔍 SPY REVEALED! 🔍" << endl;
         cout << "===========================================" << endl;
         cout << "Piece at position " << (char)('a' + position.col) << (8 - position.row) << endl;
-        cout << "which was displayed as a " << disguiseName << " ";
-        cout << (disguisedPiece->getColor() == Color::WHITE ? "White" : "Black") << "," << endl;
-        cout << "is actually owned by player ";
+        cout << "which was displayed as a " << (disguisedOwner == Color::WHITE ? "White" : "Black") 
+             << " " << disguiseName << "," << endl;
+        cout << "is actually a SPY owned by player ";
         cout << (realOwner == Color::WHITE ? "White" : "Black") << "!" << endl;
+        cout << "The spy will now fight for " << (realOwner == Color::WHITE ? "White" : "Black") << "!" << endl;
         cout << "===========================================\n" << endl;
         
         color = realOwner;
@@ -121,6 +138,7 @@ unique_ptr<Piece> Spy::clone() const {
     clonedSpy->color = color;
     clonedSpy->position = position;
     clonedSpy->moveCounter = moveCounter;
+    clonedSpy->disguisedOwner = disguisedOwner;
     
     return clonedSpy;
 }
@@ -131,6 +149,7 @@ string Spy::serialize() const {
     return Piece::serialize() + " " +
            to_string(revealed ? 1 : 0) + " " +
            to_string(static_cast<int>(realOwner)) + " " +
+           to_string(static_cast<int>(disguisedOwner)) + " " +
            to_string(moveCounter) + " " +
            disguisedPiece->serialize();
 }
@@ -143,17 +162,20 @@ Color Spy::getRealOwner() const {
     return realOwner;
 }
 
+Color Spy::getEffectiveOwner() const {
+    return realOwner;
+}
+
 PieceType Spy::getDisguisedAs() const {
     if (!disguisedPiece) return PieceType::PAWN;
     return disguisedPiece->getType();
 }
 
 Color Spy::getDisplayColor() const {
-
-    if (!revealed && disguisedPiece) {
-        return disguisedPiece->getColor();
+    if (!revealed) {
+        return disguisedOwner;
     }
-    return color;
+    return realOwner;
 }
 
 int Spy::getMovesUntilReveal() const {
