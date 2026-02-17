@@ -7,7 +7,8 @@
 
 class Spy : public Piece {
 private:
-    Color realOwner;        
+    Color realOwner; 
+    Color disguisedOwner;  
     bool revealed;          
     std::unique_ptr<Piece> disguisedPiece; 
     int moveCounter;         
@@ -30,6 +31,7 @@ public:
     
     bool isRevealed() const;
     Color getRealOwner() const;
+    Color getEffectiveOwner() const; 
     PieceType getDisguisedAs() const;
     Color getDisplayColor() const;
     int getMovesUntilReveal() const;
