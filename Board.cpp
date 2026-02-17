@@ -151,15 +151,6 @@ void Board::setupBoardWithSpecialPieces() {
     unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::mt19937 rng(seed);
     
-    std::vector<Position> whitePositions;
-    whitePositions.push_back(Position(7, 0)); 
-    whitePositions.push_back(Position(7, 1)); 
-    whitePositions.push_back(Position(7, 2)); 
-    whitePositions.push_back(Position(7, 3)); 
-    whitePositions.push_back(Position(7, 5)); 
-    whitePositions.push_back(Position(7, 6)); 
-    whitePositions.push_back(Position(7, 7)); 
-    
     std::vector<Position> blackPositions;
     blackPositions.push_back(Position(0, 0)); 
     blackPositions.push_back(Position(0, 1)); 
@@ -169,29 +160,40 @@ void Board::setupBoardWithSpecialPieces() {
     blackPositions.push_back(Position(0, 6));
     blackPositions.push_back(Position(0, 7)); 
     
-    std::shuffle(whitePositions.begin(), whitePositions.end(), rng);
-    Position whiteSpyPos = whitePositions[0];
-    Piece* whiteOriginalPiece = getPieceAt(whiteSpyPos);
-    if (whiteOriginalPiece) {
-        auto disguisedWhitePiece = removePieceAt(whiteSpyPos);
-        auto whiteSpy = std::make_unique<Spy>(Color::WHITE, std::move(disguisedWhitePiece));
+    std::shuffle(blackPositions.begin(), blackPositions.end(), rng);
+    Position whiteSpyPos = blackPositions[0];
+    Piece* blackOriginalPiece = getPieceAt(whiteSpyPos);
+    if (blackOriginalPiece) {
+        auto disguisedBlackPiece = removePieceAt(whiteSpyPos);
+        auto whiteSpy = std::make_unique<Spy>(Color::WHITE, std::move(disguisedBlackPiece));
         setPieceAt(whiteSpyPos, std::move(whiteSpy));
         spyMoveCounter[whiteSpyPos] = 0;
-        std::cout << "White Spy placed at position " 
+        std::cout << "\n  White Spy infiltrated among Black pieces at " 
                   << (char)('a' + whiteSpyPos.col) << (8 - whiteSpyPos.row) 
+                  << " (disguised as Black " << blackOriginalPiece->getSymbol() << ")" 
                   << std::endl;
     }
     
-    std::shuffle(blackPositions.begin(), blackPositions.end(), rng);
-    Position blackSpyPos = blackPositions[0];
-    Piece* blackOriginalPiece = getPieceAt(blackSpyPos);
-    if (blackOriginalPiece) {
-        auto disguisedBlackPiece = removePieceAt(blackSpyPos);
-        auto blackSpy = std::make_unique<Spy>(Color::BLACK, std::move(disguisedBlackPiece));
+    std::vector<Position> whitePositions;
+    whitePositions.push_back(Position(7, 0)); 
+    whitePositions.push_back(Position(7, 1)); 
+    whitePositions.push_back(Position(7, 2)); 
+    whitePositions.push_back(Position(7, 3)); 
+    whitePositions.push_back(Position(7, 5)); 
+    whitePositions.push_back(Position(7, 6)); 
+    whitePositions.push_back(Position(7, 7)); 
+    
+    std::shuffle(whitePositions.begin(), whitePositions.end(), rng);
+    Position blackSpyPos = whitePositions[0]; 
+    Piece* whiteOriginalPiece = getPieceAt(blackSpyPos);
+    if (whiteOriginalPiece) {
+        auto disguisedWhitePiece = removePieceAt(blackSpyPos);
+        auto blackSpy = std::make_unique<Spy>(Color::BLACK, std::move(disguisedWhitePiece));
         setPieceAt(blackSpyPos, std::move(blackSpy));
         spyMoveCounter[blackSpyPos] = 0;
-        std::cout << "Black Spy placed at position " 
+        std::cout << "🕵️  Black Spy infiltrated among White pieces at " 
                   << (char)('a' + blackSpyPos.col) << (8 - blackSpyPos.row) 
+                  << " (disguised as White " << whiteOriginalPiece->getSymbol() << ")\n" 
                   << std::endl;
     }
     
@@ -270,7 +272,14 @@ bool Board::movePiece(const Move& move) {
     Piece* piece = getPieceAt(move.from);
     if (!piece) return false;
 
-    if (!isMoveLegal(move, piece->getColor())) {
+    Color effectiveOwner;
+    if (Spy* spy = dynamic_cast<Spy*>(piece)) {
+        effectiveOwner = spy->getEffectiveOwner();
+    } else {
+        effectiveOwner = piece->getColor();
+    }
+
+    if (!isMoveLegal(move, effectiveOwner)) {
         std::cout << "Illegal move: King would be in check!" << std::endl;
         return false;
     }
@@ -283,6 +292,14 @@ bool Board::movePiece(const Move& move) {
 
     if (!piece->isValidMove(move.from.row, move.from.col, move.to.row, move.to.col, *this)) {
         return false;
+    }
+
+    if (Spy* spy = dynamic_cast<Spy*>(piece)) {
+        spy->incrementMoveCounter();
+        
+        if (!spy->isRevealed() && spy->getMovesUntilReveal() == 0) {
+            spy->reveal();
+        }
     }
 
     if (piece->getType() == PieceType::KING && 
@@ -530,7 +547,16 @@ std::vector<Move> Board::getAllLegalMoves(Color color) const {
     for (int r = 0; r < 8; ++r) {
         for (int c = 0; c < 8; ++c) {
             Piece* piece = getPiece(r, c);
-            if (piece && piece->getColor() == color) {
+            if (!piece) continue;
+            
+            bool isOwnedByPlayer = false;
+            if (Spy* spy = dynamic_cast<Spy*>(piece)) {
+                isOwnedByPlayer = (spy->getEffectiveOwner() == color);
+            } else {
+                isOwnedByPlayer = (piece->getColor() == color);
+            }
+            
+            if (isOwnedByPlayer) {
                 auto pieceMoves = getLegalMovesForPiece(Position(r, c));
                 legalMoves.insert(legalMoves.end(), pieceMoves.begin(), pieceMoves.end());
             }
@@ -550,11 +576,18 @@ std::vector<Move> Board::getLegalMovesForPiece(Position pos) const {
         return legalMoves;
     }
     
+    Color pieceColor;
+    if (Spy* spy = dynamic_cast<Spy*>(piece)) {
+        pieceColor = spy->getEffectiveOwner();
+    } else {
+        pieceColor = piece->getColor();
+    }
+    
     for (int r = 0; r < 8; ++r) {
         for (int c = 0; c < 8; ++c) {
             Move move(pos, Position(r, c));
             if (piece->isValidMove(pos.row, pos.col, r, c, *this)) {
-                if (isMoveLegal(move, piece->getColor())) {
+                if (isMoveLegal(move, pieceColor)) {
                     legalMoves.push_back(move);
                 }
             }
@@ -562,6 +595,18 @@ std::vector<Move> Board::getLegalMovesForPiece(Position pos) const {
     }
     
     return legalMoves;
+}
+
+Color Board::getEffectivePieceOwner(const Piece* piece) const {
+    if (!piece) {
+        return Color::WHITE;
+    }
+    
+    if (const Spy* spy = dynamic_cast<const Spy*>(piece)) {
+        return spy->getEffectiveOwner();
+    }
+    
+    return piece->getColor();
 }
 
 bool Board::isMoveLegal(const Move& move, Color color) const {
