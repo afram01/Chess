@@ -80,6 +80,8 @@ public:
     std::vector<Move> getLegalMovesForPiece(Position pos) const;
     bool isMoveLegal(const Move& move, Color color) const;
     
+    Color getEffectivePieceOwner(const Piece* piece) const;
+    
     bool canCastleKingside(Color color) const;
     bool canCastleQueenside(Color color) const;
     void performCastling(const Move& move);
