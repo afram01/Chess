@@ -41,6 +41,7 @@ public :
     Piece (Color c , PieceType t , Position pos, bool special = false) ;   
     virtual ~Piece () = default ;
     Color getColor() const ;
+    void setColor(Color newColor) { color = newColor; }
     PieceType getType() const ;
     bool getIsSpecial() const ;
     int getMoveCount() const ;
