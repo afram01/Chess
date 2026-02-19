@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "CLIInterface.hpp"
+#include "Joker.hpp" 
 
 using namespace std;
 
@@ -280,7 +281,7 @@ bool CLIInterface::handleInGameMenu()
 
 void CLIInterface::printMovePrompt()
 {
-    cout << "\nEnter move (or 'hint' / 'menu'): " ;
+    cout << "\nEnter move (e.g., e2 e4), 'joker', 'hint', 'help', or 'menu': " ;
 }
 
 void CLIInterface::printInvalidMove()
@@ -392,6 +393,52 @@ void CLIInterface::showError(const string &error)
 {
     cout << "ERROR: " << error << endl ;
 }
+void CLIInterface::printHelp() {
+    cout << "\n=== Commands ===\n";
+    cout << "move <from> <to> : Move a piece (e.g., e2 e4)\n";
+    cout << "joker            : Transform a Joker piece\n";
+    cout << "hint             : Show possible moves\n";
+    cout << "undo             : Undo last move\n";
+    cout << "save             : Save game\n";
+    cout << "menu             : Open game menu\n";
+    cout << "quit             : Exit game\n";
+    cout << "\n=== Joker Guide ===\n";
+    cout << "Select 'joker' command to transform.\n";
+    cout << "You can choose the piece to mimic.\n";
+    cout << "Transformation lasts for ONE turn only.\n";
+    cout << "You can transform up to 2 times per game.\n";
+    waitForEnter();
+}
+
+void CLIInterface::handleJokerCommand() {
+    cout << "Enter the position of your Joker (e.g., d4): ";
+    string posStr;
+    getline(cin, posStr);
+    
+    cout << "Choose piece to mimic (Q=Queen, R=Rook, B=Bishop, N=Knight, P=Pawn, K=King): ";
+    string typeStr;
+    getline(cin, typeStr);
+    
+    PieceType targetType = PieceType::PAWN;
+    if (typeStr == "Q" || typeStr == "q") targetType = PieceType::QUEEN;
+    else if (typeStr == "R" || typeStr == "r") targetType = PieceType::ROOK;
+    else if (typeStr == "B" || typeStr == "b") targetType = PieceType::BISHOP;
+    else if (typeStr == "N" || typeStr == "n") targetType = PieceType::KNIGHT;
+    else if (typeStr == "P" || typeStr == "p") targetType = PieceType::PAWN;
+    else if (typeStr == "K" || typeStr == "k") targetType = PieceType::KING;
+    else {
+        cout << "Invalid piece type! Transformation cancelled." << endl;
+        waitForEnter();
+        return;
+    }
+    
+    if (engine->transformJoker(posStr, targetType)) {
+        cout << "Joker transformed successfully!" << endl;
+    } else {
+        cout << "Joker transformation failed. Check position or remaining transforms." << endl;
+    }
+    waitForEnter();
+}
 
 void CLIInterface::runGameLoop()
 {
@@ -422,6 +469,16 @@ void CLIInterface::runGameLoop()
             showAllPossibleMoves() ;
             waitForEnter() ;
 
+            continue;
+        }
+        
+        if (input == "help") {
+            printHelp();
+            continue;
+        }
+
+        if (input == "joker") {
+            handleJokerCommand();
             continue;
         }
 
