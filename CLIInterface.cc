@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include "CLIInterface.hpp"
-#include "Joker.hpp" 
+#include "Joker.h" 
 
 using namespace std;
 
