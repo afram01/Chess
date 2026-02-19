@@ -106,7 +106,6 @@ std::vector<Position> SpecialPawn::getPossibleMoves(int row, int col, const Boar
                 
                 if (epSquare.row == newRow && epSquare.col == col - 1) {
                     Position enemyPawnPos(row, col - 1);
-                    Piece* enemyPawn = board.getPieceAt(enemyPawnPos);
                     
                     const auto& history = board.getMoveHistory();
                     if (!history.empty()) {
@@ -134,7 +133,6 @@ std::vector<Position> SpecialPawn::getPossibleMoves(int row, int col, const Boar
                 
                 if (ep.row == newRow && ep.col == col + 1) {
                     Position enemyPawnPos(row, col + 1);
-                    Piece* enemyPawn = board.getPieceAt(enemyPawnPos);
                     
                     const auto& history = board.getMoveHistory();
                     if (!history.empty()) {
