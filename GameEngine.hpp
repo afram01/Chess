@@ -38,6 +38,8 @@ public:
     std::vector<Move> getAllValidMoves();
 
     void undoMove();
+    bool revealSpy(const std::string& posInput);
+    std::vector<Position> getRevealableSpies() const;
 
     void saveGame(const std::string& filename);
     bool loadGame(const std::string& filename);
@@ -55,4 +57,4 @@ public:
 
 };
 
-#endif 
+#endif
