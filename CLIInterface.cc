@@ -29,6 +29,43 @@ void CLIInterface::printGameInfo()
 
     cout << "Turn: " << state->getTurnCount() << endl ;
 
+    Board* board = engine->getBoard();
+    int bombThreshold = board->getBombThreshold();
+    int minMovesUntilBomb = bombThreshold;
+    
+    std::vector<std::pair<Position, int>> criticalPieces;
+    
+    for (int r = 0; r < 8; r++) {
+        for (int c = 0; c < 8; c++) {
+            Position pos(r, c);
+            Piece* piece = board->getPieceAt(pos);
+            if (piece) {
+                int stationaryCount = board->getStationaryCount(pos);
+                int movesLeft = bombThreshold - stationaryCount;
+                
+                if (movesLeft < minMovesUntilBomb) {
+                    minMovesUntilBomb = movesLeft;
+                }
+                
+                if (movesLeft < 5 && movesLeft > 0) {
+                    criticalPieces.push_back({pos, movesLeft});
+                }
+            }
+        }
+    }
+    
+    cout << "Next Bomb in: " << minMovesUntilBomb << " moves" << endl;
+    
+    if (!criticalPieces.empty()) {
+        cout << "Critical Pieces:" << endl;
+        for (const auto& pair : criticalPieces) {
+            Piece* p = board->getPieceAt(pair.first);
+            cout << "   " << p->getSymbol() 
+                 << " at " << (char)('a' + pair.first.col) << (8 - pair.first.row)
+                 << " (" << pair.second << " moves)" << endl;
+        }
+    }
+
     if (state->getGameMode() == ENERGY)
     {
         cout << "White Energy: " << state->getEnergy(Color::WHITE) << endl ;
@@ -54,6 +91,38 @@ void CLIInterface::printTurnInfo()
     {
         printCheckWarning() ;
     }
+}
+
+void CLIInterface::showRevealableSpies()
+{
+    std::vector<Position> spies = engine->getRevealableSpies();
+    Color currentPlayer = engine->getCurrentTurn();
+    std::string playerName = (currentPlayer == Color::WHITE) ? "White" : "Black";
+
+    cout << "\n=== Your Revealable Spies (" << playerName << ") ===" << endl;
+
+    if (spies.empty())
+    {
+        cout << "You have no hidden spies available to reveal." << endl;
+        cout << "Spies can only be revealed by their real owner." << endl;
+    }
+    else
+    {
+        cout << "The following spies belong to you and can be revealed:" << endl;
+        for (const auto& pos : spies)
+        {
+            Piece* p = engine->getBoard()->getPieceAt(pos);
+            char col = 'a' + pos.col;
+            char row = '0' + (8 - pos.row);
+            cout << "  >> " << p->getSymbol()
+                 << " at " << col << row
+                 << "  (disguised as enemy piece)" << endl;
+        }
+        cout << "\nTo reveal a spy, type:  reveal <position>" << endl;
+        cout << "Example:  reveal e4" << endl;
+        cout << "Revealing a spy uses your turn!" << endl;
+    }
+    cout << "============================================" << endl;
 }
 
 void CLIInterface::showAllPossibleMoves()
@@ -115,8 +184,9 @@ bool CLIInterface::handleInGameMenu()
         cout << "2. Load Game" << endl ;
         cout << "3. Undo Move" << endl ;
         cout << "4. Show Hints" << endl ;
-        cout << "5. Return to Game" << endl ;
-        cout << "6. Quit" << endl ;
+        cout << "5. Reveal Spy" << endl ;
+        cout << "6. Return to Game" << endl ;
+        cout << "7. Quit" << endl ;
 
         cout << "Choice: " ;
 
@@ -165,10 +235,36 @@ bool CLIInterface::handleInGameMenu()
 
         else if (choice == "5")
         {
-            return false ;
+            showRevealableSpies();
+
+            cout << "\nEnter spy position to reveal (or press Enter to cancel): ";
+            string posInput;
+            getline(cin, posInput);
+
+            if (!posInput.empty())
+            {
+                bool ok = engine->revealSpy(posInput);
+                if (ok)
+                {
+                    cout << "Spy successfully revealed!" << endl;
+                    waitForEnter();
+                    return false; 
+                }
+                else
+                {
+                    cout << "Failed to reveal spy." << endl;
+                    waitForEnter();
+                }
+            }
+            continue;
         }
 
         else if (choice == "6")
+        {
+            return false ;
+        }
+
+        else if (choice == "7")
         {
             cout << "Do You Want To Quit The Game ? (y/n): " ;
             string confirm ;
@@ -184,7 +280,7 @@ bool CLIInterface::handleInGameMenu()
 
 void CLIInterface::printMovePrompt()
 {
-    cout << "\nEnter move (or 'hint'/'menu'): " ;
+    cout << "\nEnter move (or 'hint' / 'menu'): " ;
 }
 
 void CLIInterface::printInvalidMove()
