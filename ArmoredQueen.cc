@@ -112,12 +112,10 @@ void ArmoredQueen::useSpecialAbility(int, int, Board&) {
 
 string ArmoredQueen::getSymbol() const {
     if (color == Color::WHITE) {
-        if (armor == 2) return "♕2";
-        else if (armor == 1) return "♕1";
+        if (armor == 1) return "♕1";
         else return "♕0";
     } else {
-        if (armor == 2) return "♛2";
-        else if (armor == 1) return "♛1";
+        if (armor == 1) return "♛1";
         else return "♛0";
     }
 }
