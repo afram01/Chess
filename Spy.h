@@ -26,8 +26,9 @@ public:
     virtual std::string serialize() const override;
     
     void incrementMoveCounter();
-    
     void reveal();
+    bool requestReveal(Color requestingPlayer);
+    bool canBeRevealedBy(Color player) const;
     
     bool isRevealed() const;
     Color getRealOwner() const;
