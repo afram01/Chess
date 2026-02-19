@@ -121,7 +121,6 @@ vector<Position> Pawn::getPossibleMoves(int row, int col, const Board& board) co
                 
                 if (targetPos.row == epSquare.row && targetPos.col == epSquare.col) {
                     Position enemyPawnPos(row, newCol);
-                    Piece* enemyPawn = board.getPieceAt(enemyPawnPos);
                     
                     const auto& history = board.getMoveHistory();
                     if (!history.empty()) {
