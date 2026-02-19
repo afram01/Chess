@@ -1,4 +1,5 @@
 #include "GameEngine.hpp"
+#include "Spy.h"
 #include <iostream>
 #include <sstream>
 #include <cstdlib>
@@ -686,6 +687,106 @@ MoveRecord GameEngine::createMoveRecord(const Move &move)
     rec.wasPromotion = board.canPromote(move.to);
 
     return rec;
+}
+
+std::vector<Position> GameEngine::getRevealableSpies() const
+{
+    std::vector<Position> result;
+    Color currentPlayer = state.getCurrentTurn();
+
+    for (int r = 0; r < 8; r++)
+    {
+        for (int c = 0; c < 8; c++)
+        {
+            Piece* piece = board.getPiece(r, c);
+            if (!piece) continue;
+
+            if (piece->getType() == PieceType::SPY)
+            {
+                Spy* spy = dynamic_cast<Spy*>(piece);
+                if (spy && spy->canBeRevealedBy(currentPlayer))
+                {
+                    result.push_back(Position(r, c));
+                }
+            }
+        }
+    }
+    return result;
+}
+
+bool GameEngine::revealSpy(const std::string& posInput)
+{
+    Position pos = parsePosition(posInput);
+    if (!pos.isValid())
+    {
+        std::cout << "Invalid position: " << posInput << std::endl;
+        return false;
+    }
+
+    Piece* piece = board.getPiece(pos.row, pos.col);
+    if (!piece)
+    {
+        std::cout << "No piece at " << posInput << "!" << std::endl;
+        return false;
+    }
+
+    if (piece->getType() != PieceType::SPY)
+    {
+        std::cout << "The piece at " << posInput << " is not a spy!" << std::endl;
+        return false;
+    }
+
+    Spy* spy = dynamic_cast<Spy*>(piece);
+    if (!spy)
+    {
+        std::cout << "Error accessing spy piece!" << std::endl;
+        return false;
+    }
+
+    Color currentPlayer = state.getCurrentTurn();
+
+    bool success = spy->requestReveal(currentPlayer);
+
+    if (success)
+    {
+        std::cout << "\nSpy revealed at " << posInput << "!" << std::endl;
+        std::cout << "The spy now fights for " 
+                  << (currentPlayer == Color::WHITE ? "White" : "Black") << "!" << std::endl;
+        std::cout << "This action uses your turn." << std::endl;
+
+        Move revealMove(pos, pos);
+        MoveRecord rec = createMoveRecord(revealMove);
+        rec.prevTurnCount    = state.getTurnCount();
+        rec.prevWhiteEnergy  = state.getEnergy(Color::WHITE);
+        rec.prevBlackEnergy  = state.getEnergy(Color::BLACK);
+        rec.prevMovesLeft    = state.getMovesLeft();
+        rec.prevSeason       = state.getCurrentSeason();
+        rec.prevCanMoveAgain = state.getCanMoveAgain();
+        rec.prevStatus       = state.getStatus();
+        rec.prevCurrentTurn  = state.getCurrentTurn();
+        moveHistory.push_back(rec);
+
+        state.incrementTurn();
+        state.updateSeason();
+        board.setCurrentSeason(state.getCurrentSeason());
+        board.incrementTurnNumber();
+
+        if (state.getGameMode() == GameModeType::MISSION)
+        {
+            state.decrementMovesLeft();
+            if (state.getMovesLeft() <= 0)
+            {
+                std::cout << "\nMoves exhausted! Mission failed." << std::endl;
+                state.setStatus(GameStatus::MISSION_FAIL);
+                return true;
+            }
+        }
+
+        switchPlayerTurn();
+        updateGameState();
+    }
+
+    return success;
 }
 
 int GameEngine::calculateMoveCost(PieceType type) const
