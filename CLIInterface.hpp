@@ -1,10 +1,9 @@
 #ifndef CLIINTERFACE_HPP
 #define CLIINTERFACE_HPP
 
-#include <iostream>
-#include <string>
-
 #include "GameEngine.hpp"
+
+#include <string>
 
 class CLIInterface
 {
@@ -23,6 +22,7 @@ class CLIInterface
         void waitForEnter() ;
         
         void showAllPossibleMoves() ;
+        void showRevealableSpies() ;
         bool handleInGameMenu() ;
         
     public:
@@ -37,6 +37,6 @@ class CLIInterface
         void showError(const std::string& error) ;
         
         void runGameLoop() ;
-};
+} ;
 
 #endif
