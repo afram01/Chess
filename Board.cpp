@@ -82,23 +82,10 @@ void Board::setupCheckScenario() {
 void Board::setupBoardWithSpecialPieces() {
     clear();
     
-    grid[6][0] = std::make_unique<SpecialPawn>(Color::WHITE, Position{6, 0});  
-    grid[6][1] = std::make_unique<Pawn>(Color::WHITE, Position{6, 1});
-    grid[6][2] = std::make_unique<Pawn>(Color::WHITE, Position{6, 2});
-    grid[6][3] = std::make_unique<Joker>(Color::WHITE, Position{6, 3});
-    grid[6][4] = std::make_unique<Pawn>(Color::WHITE, Position{6, 4});
-    grid[6][5] = std::make_unique<Pawn>(Color::WHITE, Position{6, 5});
-    grid[6][6] = std::make_unique<Pawn>(Color::WHITE, Position{6, 6});
-    grid[6][7] = std::make_unique<Pawn>(Color::WHITE, Position{6, 7});
-    
-    grid[1][0] = std::make_unique<Pawn>(Color::BLACK, Position{1, 0});
-    grid[1][1] = std::make_unique<Pawn>(Color::BLACK, Position{1, 1});
-    grid[1][2] = std::make_unique<Pawn>(Color::BLACK, Position{1, 2});
-    grid[1][3] = std::make_unique<Joker>(Color::BLACK, Position{1, 3});
-    grid[1][4] = std::make_unique<SpecialPawn>(Color::BLACK, Position{1, 4});  
-    grid[1][5] = std::make_unique<Pawn>(Color::BLACK, Position{1, 5});
-    grid[1][6] = std::make_unique<Pawn>(Color::BLACK, Position{1, 6});
-    grid[1][7] = std::make_unique<Pawn>(Color::BLACK, Position{1, 7});
+    for (int c = 0; c < 8; ++c) {
+        grid[1][c] = std::make_unique<Joker>(Color::BLACK, Position{1, c});
+        grid[6][c] = std::make_unique<Joker>(Color::WHITE, Position{6, c});
+    }
     
     grid[0][0] = std::make_unique<Rook>(Color::BLACK, Position{0, 0});
     grid[0][1] = std::make_unique<Knight>(Color::BLACK, Position{0, 1});
