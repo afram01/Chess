@@ -178,6 +178,26 @@ Color Spy::getDisplayColor() const {
     return realOwner;
 }
 
+bool Spy::canBeRevealedBy(Color player) const {
+    return !revealed && (player == realOwner);
+}
+
+bool Spy::requestReveal(Color requestingPlayer) {
+    if (!canBeRevealedBy(requestingPlayer)) {
+        if (revealed) {
+            cout << "This spy has already been revealed!" << endl;
+        } else {
+            cout << "You are not the real owner of this spy!" << endl;
+            cout << "Only " << (realOwner == Color::WHITE ? "White" : "Black") 
+                 << " can reveal this spy." << endl;
+        }
+        return false;
+    }
+    
+    reveal();
+    return true;
+}
+
 int Spy::getMovesUntilReveal() const {
     return max(0, REVEAL_THRESHOLD - moveCounter);
 }
