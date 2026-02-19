@@ -1,9 +1,10 @@
 #include "GameEngine.hpp"
-#include "Spy.h"
+#include "Spy.hpp"
 #include <iostream>
 #include <sstream>
 #include <cstdlib>
 #include <ctime>
+#include "Joker.hpp"
 
 GameEngine::GameEngine() : state() { srand(static_cast<unsigned int>(time(nullptr))); }
 
@@ -20,7 +21,7 @@ void GameEngine::newGame(GameModeType mode)
 
     if (mode == GameModeType::STANDARD)
     {
-        board.setupBoard();
+        board.setupBoardWithSpecialPieces();
     }
     else if (mode == GameModeType::ENERGY)
     {
@@ -43,7 +44,7 @@ void GameEngine::newGame(GameModeType mode)
             state.setMissionType(CAPTURE_QUEEN);
             state.setMissionDescription("Capture the enemy queen in 10 moves!");
             state.setMovesLeft(10);
-            board.setupBoard();
+            board.setupBoardWithSpecialPieces();
         }
         else if (pick == 1)
         {
@@ -51,7 +52,7 @@ void GameEngine::newGame(GameModeType mode)
             state.setTargetPosition({4, 3});
             state.setMissionDescription("Move your King to d4 in 15 moves!");
             state.setMovesLeft(15);
-            board.setupBoard();
+            board.setupBoardWithSpecialPieces();
         }
         else
         {
@@ -120,12 +121,12 @@ bool GameEngine::processMove(const std::string &input)
                   << ")." << std::endl;
         return false;
     }
-    Piece* targetPiece = board.getPiece(to.row, to.col) ;
-    bool isCapture     = (targetPiece != nullptr) ;
+    Piece *targetPiece = board.getPiece(to.row, to.col);
+    bool isCapture = (targetPiece != nullptr);
     PieceType capturedType = isCapture ? targetPiece->getType() : PieceType::PAWN;
 
-    int energyWhiteBefore = state.getEnergy(Color::WHITE) ;
-    int energyBlackBefore = state.getEnergy(Color::BLACK) ;
+    int energyWhiteBefore = state.getEnergy(Color::WHITE);
+    int energyBlackBefore = state.getEnergy(Color::BLACK);
 
     board.incrementTurnNumber();
 
@@ -138,30 +139,30 @@ bool GameEngine::processMove(const std::string &input)
 
     if (state.getGameMode() == GameModeType::ENERGY)
     {
-        int cost = calculateMoveCost(movedPieceType) ;
+        int cost = calculateMoveCost(movedPieceType);
 
-
-        state.reduceEnergy(currentPlayer, cost) ;
+        state.reduceEnergy(currentPlayer, cost);
 
         if (isCapture)
         {
-            int refund = calculateMoveCost(capturedType) ;
-            int newEnergy = state.getEnergy(currentPlayer) + refund ;
-            if (newEnergy > 100) newEnergy = 100 ;
-            state.setEnergy(currentPlayer, newEnergy) ;
+            int refund = calculateMoveCost(capturedType);
+            int newEnergy = state.getEnergy(currentPlayer) + refund;
+            if (newEnergy > 100)
+                newEnergy = 100;
+            state.setEnergy(currentPlayer, newEnergy);
         }
-
 
         if (state.getEnergy(currentPlayer) <= 0)
         {
-            Color winner = (currentPlayer == Color::WHITE) ? Color::BLACK : Color::WHITE ;
+            Color winner = (currentPlayer == Color::WHITE) ? Color::BLACK : Color::WHITE;
             std::cout << "Energy exhausted !!! "
                       << (currentPlayer == Color::WHITE ? "White" : "Black")
-                      << " has run out of energy!" << std::endl ;
-            std::cout << "\n" << (winner == Color::WHITE ? "WHITE" : "BLACK")
-                      << " WINS!!!" << std::endl ;
-            state.setStatus(GameStatus::DRAW) ;
-            return true ;
+                      << " has run out of energy!" << std::endl;
+            std::cout << "\n"
+                      << (winner == Color::WHITE ? "WHITE" : "BLACK")
+                      << " WINS!!!" << std::endl;
+            state.setStatus(GameStatus::DRAW);
+            return true;
         }
     }
 
@@ -224,7 +225,8 @@ bool GameEngine::processMove(const std::string &input)
 
         if (missionComplete)
         {
-            std::cout << "\n" << winMessage << std::endl;
+            std::cout << "\n"
+                      << winMessage << std::endl;
             state.setStatus(GameStatus::MISSION_WIN);
             return true;
         }
@@ -239,58 +241,73 @@ bool GameEngine::processMove(const std::string &input)
 
     MoveRecord rec = createMoveRecord(move);
 
-    rec.prevTurnCount    = state.getTurnCount() ;
-    rec.prevWhiteEnergy  = energyWhiteBefore ;  
-    rec.prevBlackEnergy  = energyBlackBefore ; 
-    rec.prevMovesLeft    = state.getMovesLeft() ;
-    rec.prevSeason       = state.getCurrentSeason() ;
-    rec.prevCanMoveAgain = state.getCanMoveAgain() ;
-    rec.prevStatus       = state.getStatus() ;
-    rec.prevCurrentTurn  = state.getCurrentTurn() ;
+    rec.prevTurnCount = state.getTurnCount();
+    rec.prevWhiteEnergy = energyWhiteBefore;
+    rec.prevBlackEnergy = energyBlackBefore;
+    rec.prevMovesLeft = state.getMovesLeft();
+    rec.prevSeason = state.getCurrentSeason();
+    rec.prevCanMoveAgain = state.getCanMoveAgain();
+    rec.prevStatus = state.getStatus();
+    rec.prevCurrentTurn = state.getCurrentTurn();
 
-    moveHistory.push_back(rec) ;
-    state.incrementTurn() ;
-    state.updateSeason() ;
-    board.setCurrentSeason(state.getCurrentSeason()) ;
+    moveHistory.push_back(rec);
+    state.incrementTurn();
+    state.updateSeason();
+    board.setCurrentSeason(state.getCurrentSeason());
 
     if (state.getGameMode() == GameModeType::STANDARD &&
         board.canQueenDoubleMove(currentPlayer))
     {
         std::cout << "\nMASSACRE! "
                   << (currentPlayer == Color::WHITE ? "White" : "Black")
-                  << "'s QUEEN can move a second time (or skip)." << std::endl ;
-        std::cout << "Do you want to move your QUEEN again? (y/n): " ;
+                  << "'s QUEEN can move a second time (or skip)." << std::endl;
+        std::cout << "Do you want to move your QUEEN again? (y/n): ";
 
-        char choice ;
-        std::cin >> choice ;
-        std::cin.ignore() ;
+        char choice;
+        std::cin >> choice;
+        std::cin.ignore();
 
-        board.resetQueenDoubleMove(currentPlayer) ;
+        board.resetQueenDoubleMove(currentPlayer);
 
         if (choice == 'y' || choice == 'Y')
         {
-            std::cout << "Enter your QUEEN's second move: " ;
-            std::string secondInput ;
-            std::getline(std::cin, secondInput) ;
+            std::cout << "Enter your QUEEN's second move: ";
+            std::string secondInput;
+            std::getline(std::cin, secondInput);
 
-            std::istringstream iss2(secondInput) ;
-            std::string fromStr2, toStr2 ;
-            iss2 >> fromStr2 >> toStr2 ;
-            Position from2 = parsePosition(fromStr2) ;
-            Position to2   = parsePosition(toStr2) ;
+            std::istringstream iss2(secondInput);
+            std::string fromStr2, toStr2;
+            iss2 >> fromStr2 >> toStr2;
+            Position from2 = parsePosition(fromStr2);
+            Position to2 = parsePosition(toStr2);
 
             if (from2.isValid() && to2.isValid())
             {
-                Piece *p2 = board.getPiece(from2.row, from2.col) ;
+                Piece *p2 = board.getPiece(from2.row, from2.col);
                 if (p2 && p2->getColor() == currentPlayer &&
                     (p2->getType() == PieceType::QUEEN || p2->getType() == PieceType::ARMORED_QUEEN))
                 {
-                    board.movePiece(Move(from2, to2)) ;
-                    board.incrementTurnNumber() ;
+                    board.movePiece(Move(from2, to2));
+                    board.incrementTurnNumber();
                 }
                 else
                 {
-                    std::cout << "Invalid piece for second move. Must be your Queen." << std::endl ;
+                    std::cout << "Invalid piece for second move. Must be your Queen." << std::endl;
+                }
+            }
+        }
+    }
+        for (int r = 0; r < 8; ++r)
+    {
+        for (int c = 0; c < 8; ++c)
+        {
+            Piece *p = board.getPiece(r, c);
+            if (p && p->getType() == PieceType::JOKER && p->getColor() == currentPlayer)
+            {
+                Joker *joker = dynamic_cast<Joker *>(p);
+                if (joker)
+                {
+                    joker->endTurnReset();
                 }
             }
         }
@@ -351,7 +368,7 @@ bool GameEngine::processMove(const std::string &input)
                         std::string fromStr2, toStr2;
                         iss2 >> fromStr2 >> toStr2;
                         Position from2 = parsePosition(fromStr2);
-                        Position to2   = parsePosition(toStr2);
+                        Position to2 = parsePosition(toStr2);
 
                         if (!from2.isValid() || !to2.isValid())
                         {
@@ -417,6 +434,8 @@ bool GameEngine::processMove(const std::string &input)
             }
         }
     }
+
+    
 
     switchPlayerTurn();
     updateGameState();
@@ -492,8 +511,8 @@ void GameEngine::undoMove()
     state.setStatus(last.prevStatus);
     state.setCurrentSeason(last.prevSeason);
     state.setCanMoveAgain(last.prevCanMoveAgain);
-    state.setEnergy(Color::WHITE, last.prevWhiteEnergy);  
-    state.setEnergy(Color::BLACK, last.prevBlackEnergy); 
+    state.setEnergy(Color::WHITE, last.prevWhiteEnergy);
+    state.setEnergy(Color::BLACK, last.prevBlackEnergy);
     state.setMovesLeft(last.prevMovesLeft);
     state.setTurnCount(last.prevTurnCount);
     board.setCurrentSeason(last.prevSeason);
@@ -698,12 +717,13 @@ std::vector<Position> GameEngine::getRevealableSpies() const
     {
         for (int c = 0; c < 8; c++)
         {
-            Piece* piece = board.getPiece(r, c);
-            if (!piece) continue;
+            Piece *piece = board.getPiece(r, c);
+            if (!piece)
+                continue;
 
             if (piece->getType() == PieceType::SPY)
             {
-                Spy* spy = dynamic_cast<Spy*>(piece);
+                Spy *spy = dynamic_cast<Spy *>(piece);
                 if (spy && spy->canBeRevealedBy(currentPlayer))
                 {
                     result.push_back(Position(r, c));
@@ -714,7 +734,7 @@ std::vector<Position> GameEngine::getRevealableSpies() const
     return result;
 }
 
-bool GameEngine::revealSpy(const std::string& posInput)
+bool GameEngine::revealSpy(const std::string &posInput)
 {
     Position pos = parsePosition(posInput);
     if (!pos.isValid())
@@ -723,7 +743,7 @@ bool GameEngine::revealSpy(const std::string& posInput)
         return false;
     }
 
-    Piece* piece = board.getPiece(pos.row, pos.col);
+    Piece *piece = board.getPiece(pos.row, pos.col);
     if (!piece)
     {
         std::cout << "No piece at " << posInput << "!" << std::endl;
@@ -736,7 +756,7 @@ bool GameEngine::revealSpy(const std::string& posInput)
         return false;
     }
 
-    Spy* spy = dynamic_cast<Spy*>(piece);
+    Spy *spy = dynamic_cast<Spy *>(piece);
     if (!spy)
     {
         std::cout << "Error accessing spy piece!" << std::endl;
@@ -750,20 +770,20 @@ bool GameEngine::revealSpy(const std::string& posInput)
     if (success)
     {
         std::cout << "\nSpy revealed at " << posInput << "!" << std::endl;
-        std::cout << "The spy now fights for " 
+        std::cout << "The spy now fights for "
                   << (currentPlayer == Color::WHITE ? "White" : "Black") << "!" << std::endl;
         std::cout << "This action uses your turn." << std::endl;
 
         Move revealMove(pos, pos);
         MoveRecord rec = createMoveRecord(revealMove);
-        rec.prevTurnCount    = state.getTurnCount();
-        rec.prevWhiteEnergy  = state.getEnergy(Color::WHITE);
-        rec.prevBlackEnergy  = state.getEnergy(Color::BLACK);
-        rec.prevMovesLeft    = state.getMovesLeft();
-        rec.prevSeason       = state.getCurrentSeason();
+        rec.prevTurnCount = state.getTurnCount();
+        rec.prevWhiteEnergy = state.getEnergy(Color::WHITE);
+        rec.prevBlackEnergy = state.getEnergy(Color::BLACK);
+        rec.prevMovesLeft = state.getMovesLeft();
+        rec.prevSeason = state.getCurrentSeason();
         rec.prevCanMoveAgain = state.getCanMoveAgain();
-        rec.prevStatus       = state.getStatus();
-        rec.prevCurrentTurn  = state.getCurrentTurn();
+        rec.prevStatus = state.getStatus();
+        rec.prevCurrentTurn = state.getCurrentTurn();
         moveHistory.push_back(rec);
 
         state.incrementTurn();
@@ -813,4 +833,36 @@ int GameEngine::calculateMoveCost(PieceType type) const
     default:
         return 2;
     }
+}
+
+bool GameEngine::transformJoker(const std::string &posStr, PieceType targetType)
+{
+    Position pos = parsePosition(posStr);
+    if (!pos.isValid())
+        return false;
+
+    Piece *p = board.getPiece(pos.row, pos.col);
+    Color currentPlayer = state.getCurrentTurn();
+    
+    if (!p || p->getType() != PieceType::JOKER || p->getColor() != currentPlayer)
+    {
+        std::cout << "Invalid piece! Not your Joker." << std::endl;
+        return false;
+    }
+
+    if (!state.canUseJokerTransform(currentPlayer))
+    {
+        std::cout << "No Joker transformations remaining for you! You've used both transforms." << std::endl;
+        return false;
+    }
+
+    Joker *joker = dynamic_cast<Joker *>(p);
+    if (joker && joker->transform(targetType))
+    {
+        state.useJokerTransform(currentPlayer);
+        int remaining = state.getJokerTransformsRemaining(currentPlayer);
+        std::cout << "Joker transformed! Remaining transformations for you: " << remaining << std::endl;
+        return true;
+    }
+    return false;
 }

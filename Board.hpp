@@ -1,10 +1,10 @@
 #ifndef BOARD_HPP
 #define BOARD_HPP
 
-#include "piece.h"
+#include "piece.hpp"
 #include "Position.hpp"
 #include "Move.hpp"
-#include "King.h"
+#include "King.hpp"
 #include "Types.hpp"
 
 #include <vector>
@@ -100,6 +100,10 @@ public:
     
     void setBombThreshold(int n) { bombThreshold = n; }
     int getBombThreshold() const { return bombThreshold; }
+    int getStationaryCount(Position pos) const {
+        auto it = pieceStationaryCounter.find(pos);
+        return (it != pieceStationaryCounter.end()) ? it->second : 0;
+    }
     
     void enableQueenDoubleMove(Color color);
     bool canQueenDoubleMove(Color color) const;

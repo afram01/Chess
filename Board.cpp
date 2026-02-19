@@ -1,15 +1,15 @@
 #include "Board.hpp"
-#include "piece.h"
+#include "piece.hpp"
 #include "Types.hpp"
-#include "SpecialPawn.h"
-#include "ArmoredQueen.h"
-#include "Pawn.h"
-#include "Rook.h"
-#include "Knight.h"
-#include "Queen.h"
-#include "Bishop.h"
-#include "Joker.h"
-#include "Spy.h"
+#include "SpecialPawn.hpp"
+#include "ArmoredQueen.hpp"
+#include "Pawn.hpp"
+#include "Rook.hpp"
+#include "Knight.hpp"
+#include "Queen.hpp"
+#include "Bishop.hpp"
+#include "Joker.hpp"
+#include "Spy.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -24,7 +24,7 @@ Board::Board()
       whiteKingMoved(false), blackKingMoved(false),
       whiteKingsideRookMoved(false), whiteQueensideRookMoved(false),
       blackKingsideRookMoved(false), blackQueensideRookMoved(false),
-      bombThreshold(20),
+      bombThreshold(30),
       whiteQueenCanDoubleMove(false), blackQueenCanDoubleMove(false),
       currentSeason(SPRING),
       movesSinceSeasonChange(0),
@@ -65,36 +65,6 @@ std::unique_ptr<Piece> createRandomPieceForSpy(Color ownerColor, Position pos, s
             return std::make_unique<Pawn>(ownerColor, pos);
     }
 }
-
-void Board::setupBoard() {
-    clear();
-    
-    for (int c = 0; c < 8; ++c) {
-        grid[1][c] = std::make_unique<Pawn>(Color::BLACK, Position{1, c});
-        grid[6][c] = std::make_unique<Pawn>(Color::WHITE, Position{6, c});
-    }
-
-    grid[0][0] = std::make_unique<Rook>(Color::BLACK, Position{0, 0});
-    grid[0][7] = std::make_unique<Rook>(Color::BLACK, Position{0, 7});
-    grid[7][0] = std::make_unique<Rook>(Color::WHITE, Position{7, 0});
-    grid[7][7] = std::make_unique<Rook>(Color::WHITE, Position{7, 7});
-
-    grid[0][1] = std::make_unique<Knight>(Color::BLACK, Position{0, 1});
-    grid[0][6] = std::make_unique<Knight>(Color::BLACK, Position{0, 6});
-    grid[7][1] = std::make_unique<Knight>(Color::WHITE, Position{7, 1});
-    grid[7][6] = std::make_unique<Knight>(Color::WHITE, Position{7, 6});
-
-    grid[0][2] = std::make_unique<Bishop>(Color::BLACK, Position{0, 2});
-    grid[0][5] = std::make_unique<Bishop>(Color::BLACK, Position{0, 5});
-    grid[7][2] = std::make_unique<Bishop>(Color::WHITE, Position{7, 2});
-    grid[7][5] = std::make_unique<Bishop>(Color::WHITE, Position{7, 5});
-
-    grid[0][3] = std::make_unique<Queen>(Color::BLACK, Position{0, 3});
-    grid[0][4] = std::make_unique<King>(Color::BLACK, Position{0, 4});
-    grid[7][3] = std::make_unique<Queen>(Color::WHITE, Position{7, 3});
-    grid[7][4] = std::make_unique<King>(Color::WHITE, Position{7, 4});
-}
-
 
 void Board::setupCheckScenario() {
     clear();
